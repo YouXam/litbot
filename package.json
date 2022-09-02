@@ -1,0 +1,25 @@
+{
+  "name": "litbot",
+  "version": "1.0.0",
+  "description": "A qq bot frame.",
+  "main": "dist/cmjs/index.js",
+  "module": "dist/es6/index.js",
+  "repository": "https://github.com/YouXam/litbot.git",
+  "author": "YouXam <zhang.haoling@outlook.com>",
+  "license": "GPL-3.0-only",
+  "dependencies": {
+    "clear-module": "^4.1.2",
+    "colors-console": "^1.0.3",
+    "node-cron": "^3.0.2",
+    "oicq": "^2.2.3"
+  },
+  "scripts": {
+    "build": "tsc -P tsconfig.json; tsc -P tsconfig.json --module ES6 --outDir dist/es6",
+    "dev": "ts-node test/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.43",
+    "ts-node": "^10.8.1",
+    "typescript": "^4.7.3"
+  }
+}
