@@ -4,6 +4,19 @@ import * as clearModule from 'clear-module'
 import { fstat, watch } from 'fs'
 import * as cron from 'node-cron'
 import * as colors from 'colors-console'
+export { Client, createClient, Config, Logger, LogLevel, Statistics } from "oicq"
+export { User, Friend } from "oicq"
+export { Discuss, Group } from "oicq"
+export { Member } from "oicq"
+export { StrangerInfo, FriendInfo, GroupInfo, MemberInfo } from "oicq"
+export { Gfs, GfsDirStat, GfsFileStat } from "oicq"
+export { Gender, GroupRole, OnlineStatus } from "oicq"
+export { ErrorCode, LoginErrorCode } from "oicq"
+export { Message, PrivateMessage, GroupMessage, DiscussMessage, ForwardMessage, Forwardable, Quotable, MusicPlatform, Sendable, Anonymous, MessageElem, FileElem, ReplyElem, TextElem, AtElem, FaceElem, BfaceElem, MfaceElem, ImageElem, MiraiElem, FlashElem, PttElem, VideoElem, XmlElem, JsonElem, ShareElem, LocationElem, PokeElem, parseDmMessageId, parseGroupMessageId, parseImageFileParam, getGroupImageUrl, segment } from "oicq"
+export { PrivateMessageEvent, GroupMessageEvent, DiscussMessageEvent, MessageRet, MessageEvent, RequestEvent, FriendNoticeEvent, GroupNoticeEvent, FriendRequestEvent, GroupRequestEvent, GroupInviteEvent, EventMap, FriendIncreaseEvent, FriendDecreaseEvent, FriendRecallEvent, FriendPokeEvent, MemberIncreaseEvent, MemberDecreaseEvent, GroupRecallEvent, GroupPokeEvent, GroupAdminEvent, GroupMuteEvent, GroupTransferEvent } from "oicq"
+export { ApiRejection, Device, Apk, Platform, Domain } from "oicq"
+export * as core from "oicq"
+export { OcrResult } from "oicq"
 interface LitPrivateMessageEvent extends PrivateMessageEvent {
     args: { [key: string]: string | boolean | number | object }
 }
@@ -31,12 +44,12 @@ interface PositionalArgument extends Argument {
 interface _Crontab {
     cronstr: string
     name: string
-    job: (client: Client, data: Object) => void;
+    job: (client: Client, data: Object) => Promise<void>;
 }
 export class Crontab implements _Crontab {
     cronstr: string
     name: string
-    job: (client: Client, data: Object) => void;
+    job: (client: Client, data: Object) => Promise<void>;
     constructor(info: _Crontab) {
         this.name = info.name
         this.cronstr = info.cronstr
@@ -359,10 +372,14 @@ export class Litbot {
                         private: e.message_type === 'group' ? curcommand.__gData[e.group_id] : null,
                         global: this.data
                     })
-                    await command.job({
-                        args,
-                        ...e
-                    } as (LitDiscussMessageEvent | LitGroupMessageEvent | LitPrivateMessageEvent), _session, this.client)
+                    try {
+                        await command.job({
+                            args,
+                            ...e
+                        } as (LitDiscussMessageEvent | LitGroupMessageEvent | LitPrivateMessageEvent), _session, this.client)
+                    } catch (e) {
+                        error('command.' + curcommand.name, e.toString())
+                    }
                 } else {
                     e.reply('此命令下无函数逻辑，请检查子命令', true)
                     console.log((upcommand ? upcommand.name + '.' : '') + command.name, '未找到函数')
@@ -395,12 +412,12 @@ export class Litbot {
         if (!target) return
         if (typeof(target) === 'string') {
             const res = await import(target)
-            await this.command(res.default)
+            await this.command(res.default || res)
             watch(target, {}, async (e, f) => {
                 clearModule(target)
                 try {
                     const nm = await import(target)
-                    this.command(nm.default)
+                    this.command(nm.default || res)
                 } catch (e) {
                     console.log(e)
                 }
@@ -448,12 +465,12 @@ export class Litbot {
     async crontab(target: Crontab | string) {
         if (typeof target === 'string') {
             const res = await import(target)
-            await this.crontab(res.default)
+            await this.crontab(res.default || res)
             watch(target, {}, async (e, f) => {
                 clearModule(target)
                 try {
                     const nm = await import(target)
-                    this.crontab(nm.default)
+                    this.crontab(nm.default || res)
                 } catch (e) {
                     console.log(e)
                 }
@@ -464,14 +481,20 @@ export class Litbot {
             error('crontab.' + target.name, 'crontab 表达式不合法')
             return
         }
+        let last = false
         if (this.__crontab_list[target.name]) {
-            log('crontab.' + target.name, 'crontab 重新加载')
+            last = true
             this.__crontab_list[target.name].stop()
-            this.__crontab_list[target.name] = cron.schedule(target.cronstr, () => target.job(this.client, this.data))
-        } else {
-            log('crontab.' + target.name, 'crontab 已加载')
-            this.__crontab_list[target.name] = cron.schedule(target.cronstr, () => target.job(this.client, this.data))
+            
         }
+        log('crontab.' + target.name, last ? 'crontab 重新加载' : 'crontab 已加载')
+        this.__crontab_list[target.name] = cron.schedule(target.cronstr, async () => {
+            try {
+                await target.job(this.client, this.data)
+            } catch (e) {
+                error('crontab.' + target.name, e.toString())
+            }
+        })
     }
     async crontabs(targets: Array<Crontab | string>) {
         await Promise.allSettled(targets.map(x => this.crontab(x)))

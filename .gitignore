@@ -106,3 +106,5 @@ typings/
 # QQ data
 test/data
 test/config.ts
+
+dist/
