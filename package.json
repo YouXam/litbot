@@ -1,6 +1,6 @@
 {
   "name": "litbot",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A qq bot frame.",
   "main": "dist/cmjs/index.js",
   "module": "dist/es6/index.js",
@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "tsc -P tsconfig.json; tsc -P tsconfig.json --module ES6 --outDir dist/es6",
-    "dev": "ts-node test/index.ts"
+    "dev": "ts-node test/index.ts",
+    "publish": "tsc && git add . && cz c && git push origin main && npm publish"
   },
   "devDependencies": {
     "@types/node": "^17.0.43",

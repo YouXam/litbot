@@ -56,6 +56,21 @@ export class Crontab implements _Crontab {
         this.job = info.job
     }
 }
+
+interface _Middleware {
+    name: string,
+    job: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>;
+}
+
+export class Middleware implements _Middleware {
+    name: string
+    job: (e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>
+    constructor(info: _Middleware) {
+        this.name = info.name
+        this.job = info.job
+    }
+}
+
 interface _Command {
     /** 命令名称, 为用户使用时输入的内容 */
     readonly name: string
@@ -93,7 +108,7 @@ export class Command implements _Command {
     __gData?: { [key: number]: any }
     /** 命令逻辑函数 */
     job?: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, session: Session, client: Client) => Promise<any>
-    constructor (info: _Command) {
+    constructor(info: _Command) {
         this.name = info.name
         this.description = info.description
         this.usage = info.usage || null
@@ -103,7 +118,7 @@ export class Command implements _Command {
         this.job = info.job
     }
 }
-interface LitbotOptions {
+export interface LitbotOptions {
     /** 机器人名称 */
     name: string,
     /** QQ 号 */
@@ -111,7 +126,11 @@ interface LitbotOptions {
     /** QQ 密码 */
     password: string,
     /** 命令前缀 */
-    prefix?: string
+    prefix?: string,
+    /** 群白名单 */
+    groupWhitelist?: { [key: number]: boolean }
+    /** 人白名单 */
+    userWhitelist?: { [key: number]: boolean }
 }
 type LineArgument = boolean | (MessageElem & {
     text_type: 'quote' | 'normal'
@@ -196,7 +215,7 @@ function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
             }
         }
         return `${upcommand && upcommand.name + '.' || ''}${cmd.name}
-  ${cmd.description}${ subcommands ? '\n子命令\n' + subcommands : '\n'}用法
+  ${cmd.description}${subcommands ? '\n子命令\n' + subcommands : '\n'}用法
   ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + '>' : '[' + x.name + ']').join(' ')}` +
             (positionalArguments.length > 0 ? `\n位置参数
 ${positionalArguments.map(x => '  ' + x.usage + '\n    ' + x.description.split('\n').join('\n    ')).join('\n')}` : '') +
@@ -206,14 +225,16 @@ ${keywordArgument.map(x => '  ' + x.usage + '\n    ' + x.description.split('\n')
     return cmd.usage
 }
 function log(forp: string, msg: string) {
-    console.log(colors('green', '[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp +'] - ') + msg)
+    console.log(colors('green', '[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp + '] - ') + msg)
 }
 function error(forp: string, msg: string) {
-    console.log(colors('red', '[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp +'] - ' + msg))
+    console.log(colors('red', '[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp + '] - ' + msg))
 }
 export class Litbot {
     __command_list: { [key: string]: Command } = {}
     __crontab_list: { [key: string]: any } = {}
+    __middlewares: Middleware[] = []
+    __middlewares_list: { [key: string]: any } = {}
     client: Client = null
     prefix: string = '.'
     name: string
@@ -223,171 +244,27 @@ export class Litbot {
         group: null,
         discuss: null
     }
+    option: LitbotOptions
     constructor(option: LitbotOptions) {
         console.log('Litbot (oicq encapsulation)')
+        this.option = option
         this.prefix = option.prefix || '.'
         this.name = option.name
         this.client = createClient(option.account)
-        this.client.on('message', async e => {
-            try {
-                if (this.sessions[e.message_type]) {
-                    const id = (e as DiscussMessageEvent).discuss_id || (e as GroupMessageEvent).group_id || -1
-                    const a = this.sessions[e.message_type].get(id)
-                    if (a) {
-                        const b = a.get(e.sender.user_id)
-                        if (b) {
-                            b.inputCallback(e)
-                            a.set(e.sender.user_id, null)
-                            this.sessions[e.message_type].set(id, a)
-                            return
-                        }
-                    }
-                }
-                if (!e.raw_message.startsWith(this.prefix)) return
-                // parse arguments
-                let cmd = '', message = []
-                const kargs: { [key: string]: LineArgument } = {}, pargs: Array<LineArgument> = []
-                for (const i of e.message) {
-                    if (i.type === 'text') {
-                        const t = []
-                        let lquote = '', last = '', last_type = 'normal', tran = -2
-                        const trant = {
-                            n: '\n',
-                            t: '\t',
-                            r: '\r',
-                            b: '\b',
-                            f: '\f',
-                            '\\': '\\'
-                        }
-                        for (let k = 0; k < i.text.length; k++) {
-                            const j: string = i.text[k] as string
-                            if (j === '\\' && lquote.length && k - 1 !== tran) tran = k
-                            else if (/\s/.test(j) && !lquote.length) {
-                                if (last.length) {
-                                    t.push({ type: last_type, text: last })
-                                    last = ''
-                                    last_type = 'normal'
-                                }
-                            } else if (k - 1 == tran && (j === '"' || j === "'")) {
-                                if (lquote === '') {
-                                    lquote = j
-                                    if (k && /\s/.test(i.text[k - 1])) last_type = 'quote'
-                                } else if (lquote === j) lquote = ''
-                                else last += j
-                            } else if (k - 1 === tran && (j === '"' || j === "'")) {
-                                last += j
-                            } else if (k - 1 === tran && trant[j] !== undefined) last += trant[j]
-                            else if (k - 1 === tran) last += '\\' + j
-                            else last += j
-                        }
-                        if (!/^\s*$/.test(last)) t.push({ type: last_type, text: last })
-                        t.forEach(e => message.push({
-                            type: 'text',
-                            text: e.text,
-                            text_type: e.type
-                        }))
-                    } else message.push(i)
-                }
-                for (const i of message) {
-                    if (i.type !== 'text' || i.type === 'text' && i.text_type === 'quote') pargs.push(i)
-                    else if (i.text.startsWith('--')) {
-                        const p = i.text.indexOf('=')
-                        if (p > 0) {
-                            const k = i.text.substring(2, p)
-                            const v = i.text.substring(p + 1)
-                            kargs[k] = v
-                        } else kargs[i.text.slice(2)] = true
-                    } else if (i.text.startsWith('-')) {
-                        const p = i.text.indexOf('=')
-                        let last = ''
-                        for (let j = 1; j < i.text.length; j++) {
-                            const k = i.text[j]
-                            if (k !== '=') {
-                                kargs[k] = true
-                                last = k
-                            } else {
-                                kargs[last] = i.text.substring(j + 1)
-                                break
-                            }
-                        }
-                    } else if (!cmd.length) cmd = i.text
-                    else pargs.push(i)
-                }
-                if (cmd.indexOf(this.prefix) === 0) cmd = cmd.slice(this.prefix.length)
-                let command = this.__command_list[cmd]
-                if (!command) return
-                let upcommand = null
-                if (pargs.length > 0 && typeof(pargs[0]) !== 'boolean' && pargs[0].type === 'text') {
-                    const subcommand = command.__subcommands[pargs[0].text]
-                    if (subcommand) {
-                        upcommand = command
-                        command = subcommand
-                    }
-                }
-                pargs.shift()
-                if (kargs.help || kargs.h) {
-                    return e.reply(getUsage(command, this.prefix, upcommand), true)
-                }
-                const args = {}, errorTypes = []
-                let parg_cur = 0
-                for (const i of command.args) {
-                    if (i.defaultValue) args[i.name] = i.defaultValue
-                    if (i.argType === 'positional') {
-                        if (parg_cur < pargs.length) {
-                            const v = testType(i.dataType, pargs[parg_cur++])
-                            if (v[0]) args[i.name] = v[1]
-                            else errorTypes.push(i.name)
-                        } else if (i.required) {
-                            return e.reply(`${i.name} 是必须参数，但是没有提供`, true)
-                        }
-                    } else {
-                        for (const j of i.alias) {
-                            const tmp = kargs[j.replace(/^-+/, '')]
-                            if (tmp !== undefined) {
-                                const v = testType(i.dataType, tmp)
-                                if (v[0]) args[i.name] = v[1]
-                                else errorTypes.push(i.name)
-                                break
-                            }
-                        }
-
-                    }
-                }
-                if (errorTypes.length > 0) {
-                    return e.reply(`参数 ${errorTypes.join(', ')} 格式错误`, true)
-                }
-                if (command.job) {
-                    console.log((upcommand ? upcommand.name + '.' : '') + command.name, '开始运行')
-                    const curcommand = upcommand || command
-                    if (e.message_type === 'group' && !curcommand.__gData[e.group_id]) curcommand.__gData[e.group_id] = {}
-                    const _session = new Session(function (...args: any[]) {
-                        e.reply.apply(e, args)
-                    }, {
-                        type: e.message_type,
-                        group_id: (e as GroupMessageEvent).group_id,
-                        discuss_id: (e as DiscussMessageEvent).discuss_id,
-                        account: e.sender.user_id
-                    }, this.sessions, {
-                        public: curcommand.data, 
-                        private: e.message_type === 'group' ? curcommand.__gData[e.group_id] : null,
-                        global: this.data
-                    })
+        this.client.on('message', e => {
+            let cur = -1
+            const next = async () => {
+                cur += 1
+                if (cur >= this.__middlewares.length) this._handler(e)
+                else {
                     try {
-                        await command.job({
-                            args,
-                            ...e
-                        } as (LitDiscussMessageEvent | LitGroupMessageEvent | LitPrivateMessageEvent), _session, this.client)
-                    } catch (e) {
-                        error('command.' + curcommand.name, e.toString())
+                        await this.__middlewares[cur].job(e, this.client, next)
+                    }  catch (e) {
+                        console.log(e)
                     }
-                } else {
-                    e.reply('此命令下无函数逻辑，请检查子命令', true)
-                    console.log((upcommand ? upcommand.name + '.' : '') + command.name, '未找到函数')
                 }
-            } catch (err) {
-                console.log(err)
-                return e.reply('Error: ' + JSON.stringify(err), true)
             }
+            next()
         })
         this.client.on("system.login.slider", function (e) {
             console.log('\n网址请均在滑动验证助手(https://install.appcenter.ms/users/mzdluo123/apps/txcaptchahelper/distribution_groups/public)中访问。')
@@ -408,9 +285,173 @@ export class Litbot {
             }
         })
     }
+    async _handler(e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent) {
+        try {
+            if (e.message_type == 'group' && this.option.groupWhitelist && !this.option.groupWhitelist[e.group_id] ||e.message_type == 'private' && this.option.userWhitelist && !this.option.userWhitelist?.[e.sender.user_id]) {
+                return
+            }
+            if (this.sessions[e.message_type]) {
+                const id = (e as DiscussMessageEvent).discuss_id || (e as GroupMessageEvent).group_id || -1
+                const a = this.sessions[e.message_type].get(id)
+                if (a) {
+                    const b = a.get(e.sender.user_id)
+                    if (b) {
+                        b.inputCallback(e)
+                        a.set(e.sender.user_id, null)
+                        this.sessions[e.message_type].set(id, a)
+                        return
+                    }
+                }
+            }
+            if (!e.raw_message.startsWith(this.prefix)) return
+            // parse arguments
+            let cmd = '', message = []
+            const kargs: { [key: string]: LineArgument } = {}, pargs: Array<LineArgument> = []
+            for (const i of e.message) {
+                if (i.type === 'text') {
+                    const t = []
+                    let lquote = '', last = '', last_type = 'normal', tran = -2
+                    const trant = {
+                        n: '\n',
+                        t: '\t',
+                        r: '\r',
+                        b: '\b',
+                        f: '\f',
+                        '\\': '\\'
+                    }
+                    for (let k = 0; k < i.text.length; k++) {
+                        const j: string = i.text[k] as string
+                        if (j === '\\' && lquote.length && k - 1 !== tran) tran = k
+                        else if (/\s/.test(j) && !lquote.length) {
+                            if (last.length) {
+                                t.push({ type: last_type, text: last })
+                                last = ''
+                                last_type = 'normal'
+                            }
+                        } else if (k - 1 == tran && (j === '"' || j === "'")) {
+                            if (lquote === '') {
+                                lquote = j
+                                if (k && /\s/.test(i.text[k - 1])) last_type = 'quote'
+                            } else if (lquote === j) lquote = ''
+                            else last += j
+                        } else if (k - 1 === tran && (j === '"' || j === "'")) {
+                            last += j
+                        } else if (k - 1 === tran && trant[j] !== undefined) last += trant[j]
+                        else if (k - 1 === tran) last += '\\' + j
+                        else last += j
+                    }
+                    if (!/^\s*$/.test(last)) t.push({ type: last_type, text: last })
+                    t.forEach(e => message.push({
+                        type: 'text',
+                        text: e.text,
+                        text_type: e.type
+                    }))
+                } else message.push(i)
+            }
+            for (const i of message) {
+                if (i.type !== 'text' || i.type === 'text' && i.text_type === 'quote') pargs.push(i)
+                else if (i.text.startsWith('--')) {
+                    const p = i.text.indexOf('=')
+                    if (p > 0) {
+                        const k = i.text.substring(2, p)
+                        const v = i.text.substring(p + 1)
+                        kargs[k] = v
+                    } else kargs[i.text.slice(2)] = true
+                } else if (i.text.startsWith('-')) {
+                    const p = i.text.indexOf('=')
+                    let last = ''
+                    for (let j = 1; j < i.text.length; j++) {
+                        const k = i.text[j]
+                        if (k !== '=') {
+                            kargs[k] = true
+                            last = k
+                        } else {
+                            kargs[last] = i.text.substring(j + 1)
+                            break
+                        }
+                    }
+                } else if (!cmd.length) cmd = i.text
+                else pargs.push(i)
+            }
+            if (cmd.indexOf(this.prefix) === 0) cmd = cmd.slice(this.prefix.length)
+            let command = this.__command_list[cmd]
+            if (!command) return
+            let upcommand = null
+            if (pargs.length > 0 && typeof (pargs[0]) !== 'boolean' && pargs[0].type === 'text') {
+                const subcommand = command.__subcommands[pargs[0].text]
+                if (subcommand) {
+                    upcommand = command
+                    command = subcommand
+                }
+            }
+            pargs.shift()
+            if (kargs.help || kargs.h) {
+                return e.reply(getUsage(command, this.prefix, upcommand), true)
+            }
+            const args = {}, errorTypes = []
+            let parg_cur = 0
+            for (const i of command.args) {
+                if (i.defaultValue) args[i.name] = i.defaultValue
+                if (i.argType === 'positional') {
+                    if (parg_cur < pargs.length) {
+                        const v = testType(i.dataType, pargs[parg_cur++])
+                        if (v[0]) args[i.name] = v[1]
+                        else errorTypes.push(i.name)
+                    } else if (i.required) {
+                        return e.reply(`${i.name} 是必须参数，但是没有提供`, true)
+                    }
+                } else {
+                    for (const j of i.alias) {
+                        const tmp = kargs[j.replace(/^-+/, '')]
+                        if (tmp !== undefined) {
+                            const v = testType(i.dataType, tmp)
+                            if (v[0]) args[i.name] = v[1]
+                            else errorTypes.push(i.name)
+                            break
+                        }
+                    }
+
+                }
+            }
+            if (errorTypes.length > 0) {
+                return e.reply(`参数 ${errorTypes.join(', ')} 格式错误`, true)
+            }
+            if (command.job) {
+                console.log((upcommand ? upcommand.name + '.' : '') + command.name, '开始运行')
+                const curcommand = upcommand || command
+                if (e.message_type === 'group' && !curcommand.__gData[e.group_id]) curcommand.__gData[e.group_id] = {}
+                const _session = new Session(function (...args: any[]) {
+                    e.reply.apply(e, args)
+                }, {
+                    type: e.message_type,
+                    group_id: (e as GroupMessageEvent).group_id,
+                    discuss_id: (e as DiscussMessageEvent).discuss_id,
+                    account: e.sender.user_id
+                }, this.sessions, {
+                    public: curcommand.data,
+                    private: e.message_type === 'group' ? curcommand.__gData[e.group_id] : null,
+                    global: this.data
+                })
+                try {
+                    await command.job({
+                        args,
+                        ...e
+                    } as (LitDiscussMessageEvent | LitGroupMessageEvent | LitPrivateMessageEvent), _session, this.client)
+                } catch (e) {
+                    error('command.' + curcommand.name, e.toString())
+                }
+            } else {
+                e.reply('此命令下无函数逻辑，请检查子命令', true)
+                console.log((upcommand ? upcommand.name + '.' : '') + command.name, '未找到函数')
+            }
+        } catch (err) {
+            console.log(err)
+            return e.reply('Error: ' + JSON.stringify(err), true)
+        }
+    }
     async command(target: Command | string) {
         if (!target) return
-        if (typeof(target) === 'string') {
+        if (typeof (target) === 'string') {
             const res = await import(target)
             await this.command(res.default || res)
             watch(target, {}, async (e, f) => {
@@ -485,7 +526,7 @@ export class Litbot {
         if (this.__crontab_list[target.name]) {
             last = true
             this.__crontab_list[target.name].stop()
-            
+
         }
         log('crontab.' + target.name, last ? 'crontab 重新加载' : 'crontab 已加载')
         this.__crontab_list[target.name] = cron.schedule(target.cronstr, async () => {
@@ -498,5 +539,37 @@ export class Litbot {
     }
     async crontabs(targets: Array<Crontab | string>) {
         await Promise.allSettled(targets.map(x => this.crontab(x)))
+    }
+    async middleware(target: Middleware | string) {
+        if (typeof target === 'string') {
+            const res = await import(target)
+            await this.middleware(res.default || res)
+            watch(target, {}, async (e, f) => {
+                clearModule(target)
+                try {
+                    const nm = await import(target)
+                    this.middleware(nm.default || res)
+                } catch (e) {
+                    console.log(e)
+                }
+            })
+            return
+        }
+        let last = !!this.__middlewares_list[target.name]
+        this.__middlewares_list[target.name] = true
+        log('middleware.' + target.name, last ? 'middleware 重新加载' : 'middleware 已加载')
+        if (last) {
+            for (let i = 0; i < this.__middlewares.length; i++) {
+                if (this.__middlewares[i].name == target.name) {
+                    this.__middlewares[i] = target
+                    break
+                }
+            }
+        } else {
+            this.__middlewares.push(target)
+        }
+    }
+    async middlewares(targets: Array<Middleware | string>) {
+        await Promise.allSettled(targets.map(x => this.middleware(x)))
     }
 }

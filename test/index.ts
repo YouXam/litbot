@@ -3,6 +3,7 @@ import { Litbot } from '../src/index';
 import config from './config'
 const bot = new Litbot(config)
 bot.data.a = 1
+bot.middleware(path.join(__dirname, './middlewares/bracket.ts'))
 bot.commands([
     path.join(__dirname, './commands/ping.ts'),
     path.join(__dirname, './commands/hello.ts'),
