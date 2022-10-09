@@ -215,8 +215,8 @@ function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
             }
         }
         return `${upcommand && upcommand.name + '.' || ''}${cmd.name}
-  ${cmd.description}${subcommands ? '\n子命令\n' + subcommands : '\n'}用法
-  ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + '>' : '[' + x.name + ']').join(' ')}` +
+  ${cmd.description}${subcommands.length ? '\n子命令\n' + subcommands : '\n'}用法
+  ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands.length ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + '>' : '[' + x.name + ']').join(' ')}` +
             (positionalArguments.length > 0 ? `\n位置参数
 ${positionalArguments.map(x => '  ' + x.usage + '\n    ' + x.description.split('\n').join('\n    ')).join('\n')}` : '') +
             (keywordArgument.length > 0 ? `\n关键字参数
@@ -384,7 +384,6 @@ export class Litbot {
                     command = subcommand
                 }
             }
-            pargs.shift()
             if (kargs.help || kargs.h) {
                 return e.reply(getUsage(command, this.prefix, upcommand), true)
             }
@@ -438,7 +437,7 @@ export class Litbot {
                         ...e
                     } as (LitDiscussMessageEvent | LitGroupMessageEvent | LitPrivateMessageEvent), _session, this.client)
                 } catch (e) {
-                    error('command.' + curcommand.name, e.toString())
+                    error('command.' + curcommand.name, e.message || e.toString())
                 }
             } else {
                 e.reply('此命令下无函数逻辑，请检查子命令', true)
