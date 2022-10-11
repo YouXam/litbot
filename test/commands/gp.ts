@@ -1,9 +1,10 @@
 import { MessageElem, segment, ImageElem, MessageRet } from "oicq"
 import { Command } from '../../src/index'
+import { exec } from 'child_process'
 import axios from 'axios'
-import * as images from 'images'
 import * as fs from 'fs'
 import * as fsp from 'fs/promises'
+import * as path from 'path'
 
 async function downloadFile(url: string, file: string) {
     const writer = fs.createWriteStream(file);
@@ -41,16 +42,17 @@ export default new Command({
             const tip = (await s.send('请稍等')) as MessageRet
             const filepath = img_r.file as string
             await (await downloadFile(img_r.url, filepath))
-            const image = images(filepath)
-            const logo = images('test/static/logo.png')
-            const imageSize = image.size()
-            const logoSize = logo.size()
-            logo.resize(imageSize.width / 5, imageSize.width / 5 / logoSize.width * logoSize.height)
-            image.draw(logo, imageSize.width - logo.size().width - 10, 10).save('logoed_' + filepath)
-            await s.send(segment.image('logoed_' + filepath))
-            c.deleteMsg(tip.message_id)
-            fsp.unlink(filepath)
-            fsp.unlink('logoed_' + filepath)
+            exec(`python3 ${path.join(__dirname, '../tools/logo.py')} ${path.join(__dirname, '../static/logo.png')} ${filepath}`, async (err, stdout, stderr) => {
+                c.deleteMsg(tip.message_id)
+                if (err) {
+                    await s.send(err.toString())
+                    return
+                }
+                await s.send(segment.image('logo_' + filepath))
+                fsp.unlink(filepath)
+                fsp.unlink('logo_' + filepath)
+            })
+            
         } else {
             await s.send('图片获取失败！')
         }
