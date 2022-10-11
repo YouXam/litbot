@@ -12,7 +12,7 @@ export default new Command({
             dataType: 'at',
             defaultValue: 'random',
             description: '发情目标'
-        },
+        }
     ],
     job: async (e, s, c) => {
         if (e.message_type !== 'group') return

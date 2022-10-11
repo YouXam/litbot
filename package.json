@@ -10,6 +10,7 @@
   "dependencies": {
     "clear-module": "^4.1.2",
     "colors-console": "^1.0.3",
+    "images": "^3.2.4",
     "node-cron": "^3.0.2",
     "oicq": "^2.2.3"
   },

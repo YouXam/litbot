@@ -86,9 +86,12 @@ interface _Command {
     data?: { [key: string]: any }
     /** 特定群聊的数据 */
     __gData?: { [key: number]: any }
+    /** 群白名单 */
+    groupWhitelist?: { [key: number]: boolean }
+    /** 人白名单 */
+    userWhitelist?: { [key: number]: boolean }
     /** 命令逻辑函数 */
     job?: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, session: Session, client: Client) => Promise<any>
-    constructor
 }
 export class Command implements _Command {
     /** 命令名称, 为用户使用时输入的内容 */
@@ -106,6 +109,10 @@ export class Command implements _Command {
     data?: { [key: string]: any }
     /** 特定群聊的数据 */
     __gData?: { [key: number]: any }
+    /** 群白名单 */
+    groupWhitelist?: { [key: number]: boolean } = null
+    /** 人白名单 */
+    userWhitelist?: { [key: number]: boolean } = null
     /** 命令逻辑函数 */
     job?: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, session: Session, client: Client) => Promise<any>
     constructor(info: _Command) {
@@ -115,6 +122,8 @@ export class Command implements _Command {
         this.args = info.args || []
         this.subcommands = info.subcommands || []
         this.data = info.data || {}
+        this.groupWhitelist = info.groupWhitelist || null
+        this.userWhitelist = info.userWhitelist || null
         this.job = info.job
     }
 }
@@ -174,15 +183,6 @@ function testType(type, value) {
 function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
     const positionalArguments = [], keywordArgument = []
     if (cmd.args === undefined) cmd.args = []
-    cmd.args.push({
-        name: '帮助',
-        argType: 'keyword',
-        dataType: 'boolean',
-        required: false,
-        alias: ['-h', '--help'],
-        description: '显示帮助信息',
-        defaultValue: false
-    })
     if (!cmd.usage) {
         const ptypet = {
             'string': '文本',
@@ -191,36 +191,38 @@ function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
             'at': '@ 或 QQ号',
             'any': '任意格式'
         }, ktypet = {
-            'string': '=文本',
-            'number': '=数字',
+            'string': ':文本',
+            'number': ':数字',
             'boolean': ''
         }
         let subcommands = ''
-        for (const i of cmd.subcommands) {
-            subcommands += ` ${i.name}: ${i.description}\n`
+        if (cmd.subcommands && cmd.subcommands.length) {
+            for (const i of cmd.subcommands) {
+                subcommands += ` ${i.name}: ${i.description}\n`
+            }
         }
         for (const i of cmd.args) {
             if (i.argType === 'positional') {
                 positionalArguments.push({
-                    usage: i.name + '(' + (i.required ? '必须' : '可选') + '): ' + ptypet[i.dataType],
+                    usage: i.name + '(' + (i.required ? '必须' : '可选') + '): ' + ptypet[i.dataType] + (i.defaultValue !== undefined ? '=' + i.defaultValue: ''),
                     ...i
                 })
             } else if (i.argType === 'keyword') {
-                i.alias ||= []
-                i.alias.push('--' + i.name)
+                const k = i.alias && i.alias.length && [...i.alias] || []
+                k.push('--' + i.name)
                 keywordArgument.push({
-                    usage: i.alias.map(x => x + ktypet[i.dataType]).join(', '),
+                    usage: k.join(', '),
                     ...i
                 })
             }
         }
         return `${upcommand && upcommand.name + '.' || ''}${cmd.name}
   ${cmd.description}${subcommands.length ? '\n子命令\n' + subcommands : '\n'}用法
-  ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands.length ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + '>' : '[' + x.name + ']').join(' ')}` +
+  ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands?.length ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + (x.defaultValue !== undefined ? '=' + x.defaultValue: '')  + '>' : '[' + x.name + (x.defaultValue !== undefined ? '=' + x.defaultValue: '')  + ']').join(' ')}` +
             (positionalArguments.length > 0 ? `\n位置参数
 ${positionalArguments.map(x => '  ' + x.usage + '\n    ' + x.description.split('\n').join('\n    ')).join('\n')}` : '') +
             (keywordArgument.length > 0 ? `\n关键字参数
-${keywordArgument.map(x => '  ' + x.usage + '\n    ' + x.description.split('\n').join('\n  ')).join('\n')}` : '')
+${keywordArgument.map(x => '  ' + x.usage + ktypet[x.dataType] + (x.defaultValue !== undefined ? '=' + x.defaultValue : '') +  '\n    ' + x.description.split('\n').join('\n  ')).join('\n')}` : '')
     }
     return cmd.usage
 }
@@ -279,7 +281,10 @@ export class Litbot {
                 const list = []
                 let c = 1
                 for (const key of Object.keys(this.__command_list)) {
-                    list.push(`${c++}. ${key}: ${this.__command_list[key].description}`)
+                    const cmd = this.__command_list[key]
+                    if (e.message_type == 'group' && cmd.groupWhitelist && !cmd.groupWhitelist[e.group_id] || e.message_type == 'private' && cmd.userWhitelist && !cmd.userWhitelist?.[e.sender.user_id]) 
+                        continue
+                    list.push(`${c++}. ${key}: ${cmd.description}`)
                 }
                 return e.reply(this.name + ' 帮助\n请在所有命令前添加前缀 ' + this.prefix + '\n' + list.join('\n'), true)
             }
@@ -384,6 +389,12 @@ export class Litbot {
                     command = subcommand
                 }
             }
+            if (e.message_type == 'group' && command?.groupWhitelist && !command?.groupWhitelist[e.group_id] || e.message_type == 'private' && command?.userWhitelist && !command?.userWhitelist?.[e.sender.user_id]) {
+                return
+            }
+            if (e.message_type == 'group' && upcommand?.groupWhitelist && !upcommand?.groupWhitelist[e.group_id] || e.message_type == 'private' && upcommand?.userWhitelist && !upcommand?.userWhitelist?.[e.sender.user_id]) {
+                return
+            }
             if (kargs.help || kargs.h) {
                 return e.reply(getUsage(command, this.prefix, upcommand), true)
             }
@@ -419,18 +430,11 @@ export class Litbot {
                 console.log((upcommand ? upcommand.name + '.' : '') + command.name, '开始运行')
                 const curcommand = upcommand || command
                 if (e.message_type === 'group' && !curcommand.__gData[e.group_id]) curcommand.__gData[e.group_id] = {}
-                const _session = new Session(function (...args: any[]) {
-                    e.reply.apply(e, args)
-                }, {
-                    type: e.message_type,
-                    group_id: (e as GroupMessageEvent).group_id,
-                    discuss_id: (e as DiscussMessageEvent).discuss_id,
-                    account: e.sender.user_id
-                }, this.sessions, {
+                const _session = new Session(this.sessions, {
                     public: curcommand.data,
                     private: e.message_type === 'group' ? curcommand.__gData[e.group_id] : null,
                     global: this.data
-                })
+                }, this.client, e)
                 try {
                     await command.job({
                         args,
@@ -451,23 +455,37 @@ export class Litbot {
     async command(target: Command | string) {
         if (!target) return
         if (typeof (target) === 'string') {
-            const res = await import(target)
-            await this.command(res.default || res)
-            watch(target, {}, async (e, f) => {
-                clearModule(target)
-                try {
-                    const nm = await import(target)
-                    this.command(nm.default || res)
-                } catch (e) {
-                    console.log(e)
-                }
-            })
+            try {
+                const res = await import(target)
+                await this.command(res.default || res)
+                watch(target, {}, async (e, f) => {
+                    clearModule(target)
+                    try {
+                        const nm = await import(target)
+                        this.command(nm.default || res)
+                    } catch (e) {
+                        console.log(e)
+                    }
+                })
+            } catch (e) {
+                console.log(e)
+            }
             return
         }
         if (!target.name.length) throw new Error('缺少命令名字')
         if (!target.args) target.args = []
         let isrequired = true
+        target.args.push({
+            name: '帮助',
+            argType: 'keyword',
+            dataType: 'boolean',
+            required: false,
+            alias: ['-h', '--help'],
+            description: '显示帮助信息',
+            defaultValue: false
+        })
         // 检查命令语法
+        let ishelp = false
         for (const i of target.args) {
             if (i.argType === 'positional') {
                 if (!i.required) {

@@ -186,6 +186,11 @@ iconv-lite@^0.4.4:
   dependencies:
     safer-buffer ">= 2.1.2 < 3"
 
+images@^3.2.4:
+  version "3.2.4"
+  resolved "https://registry.npmmirror.com/images/-/images-3.2.4.tgz#18191d88c7d2a06f772b669a1b3d7d09613fc55b"
+  integrity sha512-Uq61/Q8XixCRyKvws7tPwboK0O70Dbr4kMQZHw2dqdEhnU6TpaGwyMg0vzQ4aaGtrO9N3etq46XwF7hxbqp8ug==
+
 jsonfile@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/jsonfile/-/jsonfile-4.0.0.tgz#8771aae0799b64076b76640fca058f9c10e33ecb"
