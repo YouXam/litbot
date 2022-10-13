@@ -3,7 +3,9 @@ import { Session, LitSessions } from "./session"
 import * as clearModule from 'clear-module'
 import { fstat, watch } from 'fs'
 import * as cron from 'node-cron'
+import { Db, MongoClient } from 'mongodb'
 import * as colors from 'colors-console'
+import { config } from "process"
 export { Client, createClient, Config, Logger, LogLevel, Statistics } from "oicq"
 export { User, Friend } from "oicq"
 export { Discuss, Group } from "oicq"
@@ -83,13 +85,15 @@ interface _Command {
     /** 子命令列表 */
     subcommands?: Command[]
     /** 命令数据, 重载后不会被初始化 */
-    data?: { [key: string]: any }
+    data?: { [key: string]: any, db: Db }
     /** 特定群聊的数据 */
     __gData?: { [key: number]: any }
     /** 群白名单 */
     groupWhitelist?: { [key: number]: boolean }
     /** 人白名单 */
     userWhitelist?: { [key: number]: boolean }
+    /** 初始化函数 */
+    init?: () => Promise<void>
     /** 命令逻辑函数 */
     job?: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, session: Session, client: Client) => Promise<any>
 }
@@ -106,13 +110,14 @@ export class Command implements _Command {
     subcommands?: Command[]
     __subcommands?: { [key: string]: Command } = {}
     /** 命令数据, 重载后不会被初始化 */
-    data?: { [key: string]: any }
+    data?: { [key: string]: any, db: Db }
     /** 特定群聊的数据 */
     __gData?: { [key: number]: any }
     /** 群白名单 */
     groupWhitelist?: { [key: number]: boolean } = null
     /** 人白名单 */
     userWhitelist?: { [key: number]: boolean } = null
+    init?: () => Promise<void>
     /** 命令逻辑函数 */
     job?: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, session: Session, client: Client) => Promise<any>
     constructor(info: _Command) {
@@ -121,7 +126,10 @@ export class Command implements _Command {
         this.usage = info.usage || null
         this.args = info.args || []
         this.subcommands = info.subcommands || []
-        this.data = info.data || {}
+        this.data = info.data || {
+            db: null
+        }
+        this.init = info.init
         this.groupWhitelist = info.groupWhitelist || null
         this.userWhitelist = info.userWhitelist || null
         this.job = info.job
@@ -140,6 +148,8 @@ export interface LitbotOptions {
     groupWhitelist?: { [key: number]: boolean }
     /** 人白名单 */
     userWhitelist?: { [key: number]: boolean }
+    /** 数据库 url */
+    mongoUrl?: string
 }
 type LineArgument = boolean | (MessageElem & {
     text_type: 'quote' | 'normal'
@@ -246,6 +256,8 @@ export class Litbot {
         group: null,
         discuss: null
     }
+    db: Db
+    dbClient: MongoClient = null
     option: LitbotOptions
     constructor(option: LitbotOptions) {
         console.log('Litbot (oicq encapsulation)')
@@ -268,6 +280,17 @@ export class Litbot {
             }
             next()
         })
+        if (option.mongoUrl) {
+            this.dbClient = new MongoClient(option.mongoUrl)
+            this.dbClient.connect().then(() => {
+                log('database', 'Database connected.')
+                this.db = this.dbClient.db('litbot')
+                Object.values(this.__command_list).forEach((e: Command) => {
+                    e.data.db = this.db
+                    if (e.init) e.init()
+                })
+            })
+        }
         this.client.on("system.login.slider", function (e) {
             console.log('\n网址请均在滑动验证助手(https://install.appcenter.ms/users/mzdluo123/apps/txcaptchahelper/distribution_groups/public)中访问。')
             console.log('验证完成之后若程序无反应，请重启程序。')
@@ -333,7 +356,7 @@ export class Litbot {
                                 last = ''
                                 last_type = 'normal'
                             }
-                        } else if (k - 1 == tran && (j === '"' || j === "'")) {
+                        } else if (k - 1 !== tran && (j === '"' || j === "'")) {
                             if (lquote === '') {
                                 lquote = j
                                 if (k && /\s/.test(i.text[k - 1])) last_type = 'quote'
@@ -389,6 +412,7 @@ export class Litbot {
                     command = subcommand
                 }
             }
+            if (upcommand) pargs.shift()
             if (e.message_type == 'group' && command?.groupWhitelist && !command?.groupWhitelist[e.group_id] || e.message_type == 'private' && command?.userWhitelist && !command?.userWhitelist?.[e.sender.user_id]) {
                 return
             }
@@ -414,7 +438,7 @@ export class Litbot {
                     for (const j of i.alias) {
                         const tmp = kargs[j.replace(/^-+/, '')]
                         if (tmp !== undefined) {
-                            const v = testType(i.dataType, tmp)
+                            const v = testType(i.dataType, (tmp as any).text || tmp)
                             if (v[0]) args[i.name] = v[1]
                             else errorTypes.push(i.name)
                             break
@@ -508,11 +532,13 @@ export class Litbot {
             target.data = last.data
             target.__gData = last.__gData
         } else {
-            target.data = target.data || {}
+            target.data = target.data || { db: null }
+            if (!target.data.db) target.data.db = this.db
             target.__gData = {}
         }
         for (let i of target.subcommands || []) {
             target.__subcommands[i.name] = i
+            target.__subcommands[i.name].data = target.data
         }
         this.__command_list[target.name] = target
         log('command.' + target.name, last ? '命令重新加载' : '命令已加载')

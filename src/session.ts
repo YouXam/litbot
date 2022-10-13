@@ -57,7 +57,7 @@ export class Session {
             this.inputError = rej
         })
     }
-    async send(e: Sendable, quote?: boolean): Promise<void | MessageRet> {
+    async send(e: Sendable, quote: boolean = false): Promise<void | MessageRet> {
         if (quote) {
             return await this.reply(e, quote || false)
         }
