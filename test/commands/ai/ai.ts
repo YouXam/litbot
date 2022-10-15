@@ -85,6 +85,7 @@ export default new Command({
                     scale: e.args['相关性'] as number,
                     steps: e.args['迭代次数'] as number
                 }
+                const begin = new Date()
                 const sid = (await session.send('请稍等...')) as MessageRet
                 const res = await Promise.allSettled([
                     getPrice(option),
@@ -101,7 +102,8 @@ export default new Command({
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
                     this.data.users.updateOne({ qid: e.sender.user_id }, { $set: user })
-                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元', true)
+                    const costTime = ((new Date).getTime() - begin.getTime()) / 1000
+                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
                     client.deleteMsg(sid.message_id)
                     fsp.unlink(filename)
                     const anlas = await getAnlas()
@@ -186,6 +188,7 @@ export default new Command({
                 if (!imgUrl || !imgUrl.length) {
                     return session.send('图片格式不合法！')
                 }
+                const begin = new Date()
                 const option: Config = {
                     model: e.message_type == 'private' ? 'safe-diffusion' : 'nai-diffusion',
                     input: e.args['文本'] as string,
@@ -213,7 +216,8 @@ export default new Command({
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
                     this.data.users.updateOne({ qid: e.sender.user_id }, { $set: user })
-                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元', true)
+                    const costTime = ((new Date).getTime() - begin.getTime()) / 1000
+                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
                     client.deleteMsg(sid.message_id)
                     fsp.unlink(filename)
                     const anlas = await getAnlas()
@@ -298,6 +302,7 @@ export default new Command({
                 if (!imgUrl || !imgUrl.length) {
                     return session.send('图片格式不合法！')
                 }
+                const begin = new Date()
                 const option: Config = {
                     model: e.message_type == 'private' ? 'safe-diffusion' : 'nai-diffusion',
                     input: e.args['文本'] as string,
@@ -324,7 +329,8 @@ export default new Command({
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
                     this.data.users.updateOne({ qid: e.sender.user_id }, { $set: user })
-                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元', true)
+                    const costTime = ((new Date).getTime() - begin.getTime()) / 1000
+                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
                     client.deleteMsg(sid.message_id)
                     fsp.unlink(filename)
                     const anlas = await getAnlas()
