@@ -214,7 +214,7 @@ function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
         for (const i of cmd.args) {
             if (i.argType === 'positional') {
                 positionalArguments.push({
-                    usage: i.name + '(' + (i.required ? '必须' : '可选') + '): ' + ptypet[i.dataType] + (i.defaultValue !== undefined ? '=' + i.defaultValue: ''),
+                    usage: i.name + '(' + (i.required ? '必须' : '可选') + '): ' + ptypet[i.dataType] + (i.defaultValue !== undefined ? '=' + i.defaultValue : ''),
                     ...i
                 })
             } else if (i.argType === 'keyword') {
@@ -228,11 +228,11 @@ function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
         }
         return `${upcommand && upcommand.name + '.' || ''}${cmd.name}
   ${cmd.description}${subcommands.length ? '\n子命令\n' + subcommands : '\n'}用法
-  ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands?.length ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + (x.defaultValue !== undefined ? '=' + x.defaultValue: '')  + '>' : '[' + x.name + (x.defaultValue !== undefined ? '=' + x.defaultValue: '')  + ']').join(' ')}` +
+  ${prefix || ''}${upcommand && upcommand.name + ' ' || ''}${cmd.name} ${cmd.subcommands?.length ? '[子命令名]' : ''} [关键字参数] ${positionalArguments.map(x => x.required ? '<' + x.name + (x.defaultValue !== undefined ? '=' + x.defaultValue : '') + '>' : '[' + x.name + (x.defaultValue !== undefined ? '=' + x.defaultValue : '') + ']').join(' ')}` +
             (positionalArguments.length > 0 ? `\n位置参数
 ${positionalArguments.map(x => '  ' + x.usage + '\n    ' + x.description.split('\n').join('\n    ')).join('\n')}` : '') +
             (keywordArgument.length > 0 ? `\n关键字参数
-${keywordArgument.map(x => '  ' + x.usage + ktypet[x.dataType] + (x.defaultValue !== undefined ? '=' + x.defaultValue : '') +  '\n    ' + x.description.split('\n').join('\n  ')).join('\n')}` : '')
+${keywordArgument.map(x => '  ' + x.usage + ktypet[x.dataType] + (x.defaultValue !== undefined ? '=' + x.defaultValue : '') + '\n    ' + x.description.split('\n').join('\n  ')).join('\n')}` : '')
     }
     return cmd.usage
 }
@@ -273,7 +273,7 @@ export class Litbot {
                 else {
                     try {
                         await this.__middlewares[cur].job(e, this.client, next)
-                    }  catch (e) {
+                    } catch (e) {
                         console.log(e)
                     }
                 }
@@ -305,7 +305,7 @@ export class Litbot {
                 let c = 1
                 for (const key of Object.keys(this.__command_list)) {
                     const cmd = this.__command_list[key]
-                    if (e.message_type == 'group' && cmd.groupWhitelist && !cmd.groupWhitelist[e.group_id] || e.message_type == 'private' && cmd.userWhitelist && !cmd.userWhitelist?.[e.sender.user_id]) 
+                    if (e.message_type == 'group' && cmd.groupWhitelist && !cmd.groupWhitelist[e.group_id] || e.message_type == 'private' && cmd.userWhitelist && !cmd.userWhitelist?.[e.sender.user_id])
                         continue
                     list.push(`${c++}. ${key}: ${cmd.description}`)
                 }
@@ -315,7 +315,7 @@ export class Litbot {
     }
     async _handler(e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent) {
         try {
-            if (e.message_type == 'group' && this.option.groupWhitelist && !this.option.groupWhitelist[e.group_id] ||e.message_type == 'private' && this.option.userWhitelist && !this.option.userWhitelist?.[e.sender.user_id]) {
+            if (e.message_type == 'group' && this.option.groupWhitelist && !this.option.groupWhitelist[e.group_id] || e.message_type == 'private' && this.option.userWhitelist && !this.option.userWhitelist?.[e.sender.user_id]) {
                 return
             }
             if (this.sessions[e.message_type]) {
