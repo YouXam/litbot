@@ -35,6 +35,7 @@ export default new Command({
                     argType: 'keyword',
                     required: false,
                     dataType: 'string',
+                    alias: ['--undesired-content', '-u'],
                     description: '需要过滤的内容(Undesired Content)'
                 },
                 {
@@ -151,6 +152,7 @@ export default new Command({
                     argType: 'keyword',
                     required: false,
                     dataType: 'string',
+                    alias: ['--undesired-content', '-u'],
                     description: '需要过滤的内容(Undesired Content)'
                 },
                 {
@@ -282,6 +284,7 @@ export default new Command({
                     argType: 'keyword',
                     required: false,
                     dataType: 'string',
+                    alias: ['--undesired-content', '-u'],
                     description: '需要过滤的内容(Undesired Content)'
                 },
                 {
