@@ -59,13 +59,16 @@ interface Size {
     orient: string
 }
 
+const prefix = "{{{masterpiece}}},{{{best quality}}},{{ultra detailed}},{illustration},{{extremely delicate and beautiful}}"
+
 async function getParameters(config: Config) {
+    config.input = prefix + ',' + config.input
     const orient = orientMap[config.orient || 'portrait'] || { height: 768, width: 512 }
     const parameters: Parameters= {
         seed: config.seed || Math.round(new Date().getTime() / 1000),
         n_samples: 1,
         sampler: config.sampler || 'k_euler_ancestral',
-        uc: (config.nsfw ? 'nsfw, ' : '') + 'lowres, text, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry',
+        uc: (config.nsfw ? 'nsfw, ' : '') + 'lowres, text, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry,' + (config.uc || ''),
         ucPreset: 0,
         height: orient.height,
         width: orient.width,

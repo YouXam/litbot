@@ -1,6 +1,7 @@
 import { Command, segment,  } from '../../../src/index'
 import { getImage, getPrice, Config, getAnlas } from './spider'
 import { MessageRet } from 'oicq'
+import config from './config'
 import * as fsp from 'fs/promises'
 export default new Command({
     name: 'ai',
@@ -28,6 +29,13 @@ export default new Command({
                     required: true,
                     dataType: 'string',
                     description: '对图片的描述文本，详见 https://docs.novelai.net/image/basics.html'
+                },
+                {
+                    name: '过滤内容',
+                    argType: 'keyword',
+                    required: false,
+                    dataType: 'string',
+                    description: '需要过滤的内容(Undesired Content)'
                 },
                 {
                     name: '采样器',
@@ -83,7 +91,8 @@ export default new Command({
                     orient: e.args['图片尺寸'] as string,
                     seed: e.args['种子'] as number,
                     scale: e.args['相关性'] as number,
-                    steps: e.args['迭代次数'] as number
+                    steps: e.args['迭代次数'] as number,
+                    uc: e.args['过滤内容'] as string
                 }
                 const begin = new Date()
                 const sid = (await session.send('请稍等...')) as MessageRet
@@ -136,6 +145,13 @@ export default new Command({
                     alias: ['--sampler', '-s'],
                     dataType: 'string',
                     description: '模型采样器: k_euler_ancestral(默认), keuler, k_Ims, plms, ddim',
+                },
+                {
+                    name: '过滤内容',
+                    argType: 'keyword',
+                    required: false,
+                    dataType: 'string',
+                    description: '需要过滤的内容(Undesired Content)'
                 },
                 {
                     name: '图片尺寸',
@@ -198,7 +214,9 @@ export default new Command({
                     scale: e.args['相关性'] as number,
                     steps: e.args['迭代次数'] as number,
                     imgUrl: imgUrl,
-                    enhance: true
+                    enhance: true,
+                    uc: e.args['过滤内容'] as string
+                    
                 }
                 const sid = (await session.send('请稍等...')) as MessageRet
                 const res = await Promise.allSettled([
@@ -260,6 +278,13 @@ export default new Command({
                     description: '图片尺寸: landscape(横), portrait(竖, 默认), square(方)'
                 },
                 {
+                    name: '过滤内容',
+                    argType: 'keyword',
+                    required: false,
+                    dataType: 'string',
+                    description: '需要过滤的内容(Undesired Content)'
+                },
+                {
                     name: '种子',
                     argType: 'keyword',
                     required: false,
@@ -311,7 +336,8 @@ export default new Command({
                     seed: e.args['种子'] as number,
                     scale: e.args['相关性'] as number,
                     steps: e.args['迭代次数'] as number,
-                    imgUrl: imgUrl
+                    imgUrl: imgUrl,
+                    uc: e.args['过滤内容'] as string
                 }
                 const sid = (await session.send('请稍等...')) as MessageRet
                 const res = await Promise.allSettled([
@@ -342,6 +368,42 @@ export default new Command({
                     else if (res[1].status == 'rejected') reason = 'getImage: ' + res[1].reason.toString()
                     session.send('错误:\n' + reason)
                 }
+            }
+        }),
+        // add
+        new Command({
+            name: 'add',
+            description: '添加用户余额',
+            args: [
+                {
+                    name: '用户',
+                    argType: 'positional',
+                    required: true,
+                    dataType: 'at',
+                    description: '用户'
+                },
+                {
+                    name: '金额',
+                    argType: 'positional',
+                    required: true,
+                    dataType: 'number',
+                    description: '金额'
+                }
+            ],
+            userWhitelist: config.superusers,
+            async job(e, session, client) {
+                let res = await this.data.users.findOne({ qid: e.args['用户'] })
+                if (!res) {
+                    res = {
+                        qid: e.args['用户'],
+                        price: 0
+                    }
+                }
+                res.price += e.args['金额']
+                await this.data.users.updateOne({ qid: e.args['用户'] }, { $set: res }, { upsert: true })
+                session.send('用户 ' + e.args['用户'] + ' 余额增加 ' + e.args['金额'] + ' 元， 当前余额 ' + res.price.toFixed(2) + ' 元。')
+                const total = (await this.data.users.aggregate([{$group: { _id: null, price : { $sum: "$price" }}}]).toArray())[0]
+                this.data.config.updateOne({ type: 'main' }, { $set: { price: total.price }})
             }
         })
     ]

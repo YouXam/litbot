@@ -190,7 +190,7 @@ function testType(type, value) {
     return nil
 }
 /** 返回命令帮助信息 */
-function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
+function getUsage(cmd: Command, prefix: string, e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, upcommand?: Command, ): string {
     const positionalArguments = [], keywordArgument = []
     if (cmd.args === undefined) cmd.args = []
     if (!cmd.usage) {
@@ -208,6 +208,8 @@ function getUsage(cmd: Command, prefix: string, upcommand?: Command): string {
         let subcommands = ''
         if (cmd.subcommands && cmd.subcommands.length) {
             for (const i of cmd.subcommands) {
+                if (e.message_type == 'group' && i.groupWhitelist && !i.groupWhitelist[e.group_id] || i.userWhitelist && !i.userWhitelist?.[e.sender.user_id])
+                    continue
                 subcommands += ` ${i.name}: ${i.description}\n`
             }
         }
@@ -305,7 +307,7 @@ export class Litbot {
                 let c = 1
                 for (const key of Object.keys(this.__command_list)) {
                     const cmd = this.__command_list[key]
-                    if (e.message_type == 'group' && cmd.groupWhitelist && !cmd.groupWhitelist[e.group_id] || e.message_type == 'private' && cmd.userWhitelist && !cmd.userWhitelist?.[e.sender.user_id])
+                    if (e.message_type == 'group' && cmd.groupWhitelist && !cmd.groupWhitelist[e.group_id] || cmd.userWhitelist && !cmd.userWhitelist?.[e.sender.user_id])
                         continue
                     list.push(`${c++}. ${key}: ${cmd.description}`)
                 }
@@ -315,7 +317,7 @@ export class Litbot {
     }
     async _handler(e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent) {
         try {
-            if (e.message_type == 'group' && this.option.groupWhitelist && !this.option.groupWhitelist[e.group_id] || e.message_type == 'private' && this.option.userWhitelist && !this.option.userWhitelist?.[e.sender.user_id]) {
+            if (e.message_type == 'group' && this.option.groupWhitelist && !this.option.groupWhitelist[e.group_id] || this.option.userWhitelist && !this.option.userWhitelist?.[e.sender.user_id]) {
                 return
             }
             if (this.sessions[e.message_type]) {
@@ -407,20 +409,20 @@ export class Litbot {
             let upcommand = null
             if (pargs.length > 0 && typeof (pargs[0]) !== 'boolean' && pargs[0].type === 'text') {
                 const subcommand = command.__subcommands[pargs[0].text]
-                if (subcommand) {
+                if (subcommand && !(e.message_type == 'group' && subcommand.groupWhitelist && !subcommand.groupWhitelist[e.group_id]) && !(subcommand.userWhitelist && !subcommand.userWhitelist?.[e.sender.user_id])) {
                     upcommand = command
                     command = subcommand
                 }
             }
             if (upcommand) pargs.shift()
-            if (e.message_type == 'group' && command?.groupWhitelist && !command?.groupWhitelist[e.group_id] || e.message_type == 'private' && command?.userWhitelist && !command?.userWhitelist?.[e.sender.user_id]) {
+            if (e.message_type == 'group' && command?.groupWhitelist && !command?.groupWhitelist[e.group_id] || command?.userWhitelist && !command?.userWhitelist?.[e.sender.user_id]) {
                 return
             }
-            if (e.message_type == 'group' && upcommand?.groupWhitelist && !upcommand?.groupWhitelist[e.group_id] || e.message_type == 'private' && upcommand?.userWhitelist && !upcommand?.userWhitelist?.[e.sender.user_id]) {
+            if (e.message_type == 'group' && upcommand?.groupWhitelist && !upcommand?.groupWhitelist[e.group_id] || upcommand?.userWhitelist && !upcommand?.userWhitelist?.[e.sender.user_id]) {
                 return
             }
             if (kargs.help || kargs.h) {
-                return e.reply(getUsage(command, this.prefix, upcommand), true)
+                return e.reply(getUsage(command, this.prefix, e, upcommand), true)
             }
             const args = {}, errorTypes = []
             let parg_cur = 0
