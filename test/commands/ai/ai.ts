@@ -135,7 +135,8 @@ export default new Command({
                 {
                     name: '文本',
                     argType: 'positional',
-                    required: true,
+                    required: false,
+                    defaultValue: '',
                     dataType: 'string',
                     description: '对图片的描述文本，详见 https://docs.novelai.net/image/basics.html'
                 },
@@ -259,7 +260,8 @@ export default new Command({
                 {
                     name: '文本',
                     argType: 'positional',
-                    required: true,
+                    required: false,
+                    defaultValue: '',
                     dataType: 'string',
                     description: '对图片的描述文本，详见 https://docs.novelai.net/image/basics.html'
                 },
