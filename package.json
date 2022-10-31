@@ -14,7 +14,7 @@
     "libsodium-wrappers": "^0.7.10",
     "mongodb": "^4.10.0",
     "node-cron": "^3.0.2",
-    "oicq": "^2.2.3"
+    "oicq": "^2.3.1"
   },
   "scripts": {
     "build": "tsc -P tsconfig.json; tsc -P tsconfig.json --module ES6 --outDir dist/es6",

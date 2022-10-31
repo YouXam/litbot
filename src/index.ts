@@ -266,7 +266,9 @@ export class Litbot {
         this.option = option
         this.prefix = option.prefix || '.'
         this.name = option.name
-        this.client = createClient(option.account)
+        this.client = createClient(option.account, {
+            platform: 2
+        })
         this.client.on('message', e => {
             let cur = -1
             const next = async () => {
