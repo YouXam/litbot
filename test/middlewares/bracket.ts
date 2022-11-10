@@ -64,5 +64,10 @@ export default new Middleware({
         if (stack.length)
             await e.reply(stack.reverse().map(e => bracket[e]).join(''), true)
         await next()
+    },
+    groupWhitelist: {
+        833938858: true,
+        715207945: true,
+        729471015: true,
     }
 })

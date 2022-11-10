@@ -24,5 +24,10 @@ export default new Command({
             target = list[Math.ceil(Math.random() * list.length)]
         }
         await e.reply([segment.at(target), '🤤🤤🤤'])
+    },
+    groupWhitelist: {
+        833938858: true,
+        715207945: true,
+        729471015: true,
     }
 })

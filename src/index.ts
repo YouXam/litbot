@@ -60,16 +60,28 @@ export class Crontab implements _Crontab {
 }
 
 interface _Middleware {
-    name: string,
-    job: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>;
+    name: string
+    /** 群白名单 */
+    groupWhitelist?: { [key: number]: boolean }
+    /** 人白名单 */
+    userWhitelist?: { [key: number]: boolean }
+    job: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>
 }
 
 export class Middleware implements _Middleware {
     name: string
+    groupWhitelist = null
+    userWhitelist = null
     job: (e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>
     constructor(info: _Middleware) {
         this.name = info.name
         this.job = info.job
+        if (info.groupWhitelist) {
+            this.groupWhitelist = info.groupWhitelist
+        }
+        if (info.userWhitelist) {
+            this.userWhitelist = info.userWhitelist
+        }
     }
 }
 
@@ -276,7 +288,12 @@ export class Litbot {
                 if (cur >= this.__middlewares.length) this._handler(e)
                 else {
                     try {
-                        await this.__middlewares[cur].job(e, this.client, next)
+                        const middleware = this.__middlewares[cur]
+                        if (e.message_type == 'group' && middleware.groupWhitelist && !middleware.groupWhitelist[e.group_id] || middleware.userWhitelist && !middleware.userWhitelist[e.sender.user_id]) { 
+                            await next()
+                        } else {
+                            await middleware.job(e, this.client, next)
+                        }
                     } catch (e) {
                         console.log(e)
                     }
