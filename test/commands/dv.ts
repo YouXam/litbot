@@ -41,16 +41,15 @@ const luckText = {
     [2]: '大吉',
 }
 
-function sample(n: number, arr) {
-    var result: any[] = [];
-    var count = arr.length;
-    for (var i = 0; i < n; i++) {
-        var index = ~~(Math.random() * count) + i;
-        result[i] = arr[index];
-        arr[index] = arr[i];
-        count--;
+function sample(size, arr) {
+    var shuffled = arr.slice(0), i = arr.length, temp, index;
+    while (i--) {
+        index = Math.floor((i + 1) * Math.random());
+        temp = shuffled[index];
+        shuffled[index] = shuffled[i];
+        shuffled[i] = temp;
     }
-    return result
+    return shuffled.slice(0, size);
 }
 
 export default new Command({
@@ -69,7 +68,6 @@ export default new Command({
         }
         if (!data[e.sender.user_id].info) {
             const luck = [-2, -1, -1, 0, 0, 1, 1, 2][Math.floor(Math.random() * 8)]
-            console.log(luck)
             const postive = luck >= -1 && 2 || 0, negative = luck <= 1 && 2 || 0
             const eventList = events
             if (e.message_type === 'group' && eventsWithGroup[e.group_id]) {
