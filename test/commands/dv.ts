@@ -25,7 +25,9 @@ const events = [
     ['发朋友圈', '会被当做卖面膜的', '分享是种美德'],
     ['装逼', '被识破', '获得众人敬仰'],
     ['打游戏', '被打成一团', '你是最强的'],
-    ['出行', '路途必然坎坷', '一路顺风']
+    ['出行', '路途必然坎坷', '一路顺风'],
+    ['看电影', '被剧透', '电影很好看'],
+
 ]
 const eventsWithGroup = {
     729471015: [
@@ -72,7 +74,7 @@ export default new Command({
         if (!data[e.sender.user_id].info) {
             const luck = [-2, -1, -1, 0, 0, 1, 1, 2][Math.floor(Math.random() * 8)]
             const postive = luck >= -1 && 2 || 0, negative = luck <= 1 && 2 || 0
-            const eventList = events
+            const eventList = [...events]
             if (e.message_type === 'group' && eventsWithGroup[e.group_id]) {
                 eventList.push(...eventsWithGroup[e.group_id])
             }
