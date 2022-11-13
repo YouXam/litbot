@@ -24,8 +24,10 @@ export default new Command({
             await s.send(data.ncov.message)
             return
         }
-        const res = await getData()
-        const resText = Object.keys(res).map((item: any) => {
+        let res = await getData()
+        // 按照人数多少升序排序
+        const sorted = Object.keys(res).sort((a, b) => res[a].count - res[b].count)
+        const resText = sorted.map((item: any) => {
             const data = res[item].count
             return `${item}: ${data} 人`
         }).join('\n')
