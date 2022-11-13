@@ -31,17 +31,25 @@ export default new Command({
             const data = res[item].count
             return `${item}: ${data} 人`
         }).join('\n')
-        const time = Math.min(...Object.keys(res).map((item: any) => (new Date(res[item].time)).getTime()))
-        const message = [
-            '核酸点附近人数: \n',
-            resText,
-            '\n数据来源于 nuclear.byrio.work (' + new Date(time).toLocaleString() + ')',
-        ]
-        data.ncov = {
-            time,
-            message
+        if (Object.keys(res).every(e => res[e].time === "")) {
+            // 维护中
+            data.ncov = {
+                time: Date.now() - 4 * 60 * 1000,
+                message: '源网站 nuclear.byrio.work 维护中，请稍后再试'
+            }
+        } else {
+            const time = Math.min(...Object.keys(res).map((item: any) => (new Date(res[item].time)).getTime()))
+            const message = [
+                '核酸点附近人数: \n',
+                resText,
+                '\n数据来源于 nuclear.byrio.work (' + new Date(time).toLocaleString() + ')',
+            ]
+            data.ncov = {
+                time,
+                message
+            }
         }
-        await s.send(message)
+        await s.send(data.ncov.message)
     },
     groupWhitelist:{
         681338941: true,
