@@ -13,5 +13,6 @@ bot.commands([
     path.join(__dirname, './commands/gp.ts'),
     path.join(__dirname, './commands/ai/ai.ts'),
     path.join(__dirname, './commands/dv.ts'),
+    path.join(__dirname, './commands/ncov.ts'),
 ])
 // bot.crontab(path.join(__dirname, './crontab/timer.ts'))
