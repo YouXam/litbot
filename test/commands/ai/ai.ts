@@ -1,6 +1,6 @@
 import { Command, segment,  } from '../../../src/index'
 import { getImage, getPrice, Config, getAnlas } from './spider'
-import { MessageRet } from 'oicq'
+import { AtElem, MessageElem, MessageRet, TextElem } from 'oicq'
 import config from './config'
 import * as fsp from 'fs/promises'
 export default new Command({
@@ -77,10 +77,19 @@ export default new Command({
                     alias: ['--step', '-p'],
                     dataType: 'number',
                     description: '迭代次数越大，效果越好，默认为 33'
+                },
+                {
+                    name: '使用公用账户',
+                    argType: 'keyword',
+                    required: false,
+                    alias: ['--global', '-g'],
+                    dataType: 'boolean',
+                    description: '使用公用账户'
                 }
             ],
             async job(e, session, client) {
-                const user = await this.data.users.findOne({ qid: e.sender.user_id })
+                const userid = e.args['使用公用账户'] ? 0 : e.sender.user_id
+                const user = await this.data.users.findOne({ qid: userid })
                 const data = await this.data.config.findOne({ type: 'main' })
                 if (!user || !user?.price || user.price <= 0) {
                     return session.send('点数不足, 当前余额 ' + (user?.price || 0) + ' 元', true)
@@ -111,9 +120,9 @@ export default new Command({
                     data.price -= costPrice
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
-                    this.data.users.updateOne({ qid: e.sender.user_id }, { $set: user })
+                    this.data.users.updateOne({ qid: userid }, { $set: user })
                     const costTime = ((new Date).getTime() - begin.getTime()) / 1000
-                    await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
+                    await session.send((e.args['使用公用账户'] ? '<公用账户>' : e.sender.nickname) + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
                     client.deleteMsg(sid.message_id)
                     fsp.unlink(filename)
                     const anlas = await getAnlas()
@@ -187,10 +196,19 @@ export default new Command({
                     alias: ['--step', '-p'],
                     dataType: 'number',
                     description: '迭代次数越大，效果越好，默认为 33'
+                },
+                {
+                    name: '使用公用账户',
+                    argType: 'keyword',
+                    required: false,
+                    alias: ['--global', '-g'],
+                    dataType: 'boolean',
+                    description: '使用公用账户'
                 }
             ],
             async job(e, session, client) {
-                const user = await this.data.users.findOne({ qid: e.sender.user_id })
+                const userid = e.args['使用公用账户'] ? 0 : e.sender.user_id
+                const user = await this.data.users.findOne({ qid: userid })
                 const data = await this.data.config.findOne({ type: 'main' })
                 if (!user || !user?.price || user.price <= 0) {
                     return session.send('点数不足, 当前余额 ' + (user?.price || 0) + ' 元', true)
@@ -312,10 +330,19 @@ export default new Command({
                     alias: ['--step', '-p'],
                     dataType: 'number',
                     description: '迭代次数越大，效果越好，默认为 33'
+                },
+                {
+                    name: '使用公用账户',
+                    argType: 'keyword',
+                    required: false,
+                    alias: ['--global', '-g'],
+                    dataType: 'boolean',
+                    description: '使用公用账户'
                 }
             ],
             async job(e, session, client) {
-                const user = await this.data.users.findOne({ qid: e.sender.user_id })
+                const userid = e.args['使用公用账户'] ? 0 : e.sender.user_id
+                const user = await this.data.users.findOne({ qid: userid })
                 const data = await this.data.config.findOne({ type: 'main' })
                 if (!user || !user?.price || user.price <= 0) {
                     return session.send('点数不足, 当前余额 ' + (user?.price || 0) + ' 元', true)
@@ -406,9 +433,44 @@ export default new Command({
                 }
                 res.price += e.args['金额']
                 await this.data.users.updateOne({ qid: e.args['用户'] }, { $set: res }, { upsert: true })
-                session.send('用户 ' + e.args['用户'] + ' 余额增加 ' + e.args['金额'] + ' 元， 当前余额 ' + res.price.toFixed(2) + ' 元。')
+                const username = e.args['用户'] && (await client.getStrangerInfo(e.args['用户'] as number)).nickname || '<公用账户>'
+                session.send('用户 ' + username + ' 余额增加 ' + e.args['金额'] + ' 元， 当前余额 ' + res.price.toFixed(2) + ' 元。')
                 const total = (await this.data.users.aggregate([{$group: { _id: null, price : { $sum: "$price" }}}]).toArray())[0]
                 this.data.config.updateOne({ type: 'main' }, { $set: { price: total.price }})
+            }
+        }),
+        // info
+        new Command({
+            name: 'info',
+            description: '查看用户余额',
+            args: [
+                {
+                    name: '用户',
+                    argType: 'positional',
+                    required: false,
+                    dataType: 'at',
+                    description: '用户'
+                },
+                {
+                    name: '公用账户',
+                    argType: 'keyword',
+                    alias: ['-g', '--global'],
+                    required: false,
+                    dataType: 'boolean',
+                    description: '公用账户'
+                }
+            ],
+            async job(e, session, client) {
+                const userid: number = e.args['公用账户'] ? 0 : (e.args['用户'] !== undefined ? e.args['用户'] : e.sender.user_id) as number
+                let res = await this.data.users.findOne({ qid: userid })
+                if (!res) {
+                    res = {
+                        qid: userid,
+                        price: 0
+                    }
+                }
+                const username =userid && (await client.getStrangerInfo(userid)).nickname || '<公用账户>'
+                session.send('用户 ' + username + ' 余额 ' + res.price.toFixed(2) + ' 元。')
             }
         })
     ]

@@ -110,3 +110,5 @@ test/config.ts
 dist/
 
 test/commands/ai/config.ts
+
+litbot.sh

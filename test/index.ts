@@ -5,10 +5,10 @@ const bot = new Litbot(config)
 bot.data.a = 1
 bot.middleware(path.join(__dirname, './middlewares/bracket.ts'))
 bot.commands([
-    path.join(__dirname, './commands/ping.ts'),
-    path.join(__dirname, './commands/hello.ts'),
-    path.join(__dirname, './commands/data.ts'),
-    path.join(__dirname, './commands/global.ts'),
+    // path.join(__dirname, './commands/ping.ts'),
+    // path.join(__dirname, './commands/hello.ts'),
+    // path.join(__dirname, './commands/data.ts'),
+    // path.join(__dirname, './commands/global.ts'),
     path.join(__dirname, './commands/rut.ts'),
     path.join(__dirname, './commands/gp.ts'),
     path.join(__dirname, './commands/ai/ai.ts'),

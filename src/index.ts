@@ -190,14 +190,18 @@ function testType(type, value) {
         return typeof value !== 'string' ? nil : [true, value]
     }
     if (type === 'number') {
-        return isNaN(value) || !value.length ? nil : [true, parseInt(value)]
+        return isNaN(value) || !value.length ? nil : [true, parseFloat(value)]
     }
     if (type === 'boolean') {
         return boolt[value] !== undefined ? [true, boolt[value]] : nil
     }
     if (type === 'at') {
-        return !(typeof value === 'object' && value.hasOwnProperty('type') && value.hasOwnProperty('qq') && value.type === 'at' && typeof value.qq === 'number') &&
-            isNaN(value) ? nil : [true, typeof value === 'object' ? value.qq : parseInt(value)]
+        if (typeof value === 'object' && value.type === 'at') {
+            if (value.qq == 'all') return [true, 0]
+            return [true, value.qq]
+        } else if (typeof value === 'string') {
+            return isNaN(parseInt(value)) ? nil : [true, parseInt(value)]
+        }
     }
     return nil
 }
@@ -406,7 +410,7 @@ export class Litbot {
                         const v = i.text.substring(p + 1)
                         kargs[k] = v
                     } else kargs[i.text.slice(2)] = true
-                } else if (i.text.startsWith('-')) {
+                } else if (i.text.startsWith('-') && /^-[^\d]$/.test(i.text)) {
                     const p = i.text.indexOf('=')
                     let last = ''
                     for (let j = 1; j < i.text.length; j++) {
