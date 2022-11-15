@@ -2,10 +2,10 @@ import { Command } from '../../src/index'
 import axios from 'axios'
 
 async function getData() {
-    const loc = await axios.get('https://nuclear.byrio.work/api/getloc')
+    const loc = await axios.get('https://youth.bupt.edu.cn/nuclear/api/getloc')
     const loclist = loc.data.loclist
     const shLocList = Object.keys(loclist).filter((item: any) => item.startsWith('沙河'))
-    const jobs = shLocList.map((item: any) => axios.get(`https://nuclear.byrio.work/api/get?locate=${loclist[item]}`))
+    const jobs = shLocList.map((item: any) => axios.get(`https://youth.bupt.edu.cn/nuclear/api/get?locate=${loclist[item]}`))
     const res = await Promise.all(jobs)
     const data = res.map((item: any) => item.data)
     // shLoclist is key, data is value
