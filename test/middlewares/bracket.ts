@@ -2,7 +2,6 @@ import { Middleware } from '../../src/index'
 
 const bracket = {
     '(': ')',
-    '<': '>',
     '[': ']',
     '{': '}',
     '【': '】',
@@ -12,13 +11,11 @@ const bracket = {
     '《': '》',
     '『':'』',
     '〖': '〗',
-    "“": "”",
-    "‘": "’"
+    "“": "”"
 }
 
 const fBracket = {
     ')': '(',
-    '>': '<',
     ']': '[',
     '}': '{',
     '】': '【',
@@ -28,8 +25,7 @@ const fBracket = {
     '》': '《',
     '』':'『',
     '〗': '〖`',
-    "”": "“",
-    "’": "‘"
+    "”": "“"
 }
 
 
@@ -43,7 +39,7 @@ export default new Middleware({
                 stack.push(e.raw_message[i])
             } else if (fBracket[e.raw_message[i]]) {
                 if (!stack.length) {
-                    e.reply(`括号匹配错误：\n在第 ${line} 行第 ${col} 列，前面没有和 "${e.raw_message[i]}" 匹配的括号。`, true)
+                    e.reply(`括号匹配错误：\n在第 ${line} 行第 ${col} 列，前面没有和 "${e.raw_message[i]}" 匹配的符号。`, true)
                     stack = []
                     break
                 } else if (stack[stack.length - 1] !== fBracket[e.raw_message[i]]) {
