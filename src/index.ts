@@ -277,7 +277,11 @@ export class Litbot {
     db: Db
     dbClient: MongoClient = null
     option: LitbotOptions
+    beginTime: Date = null
+    totalMessage: number = 0
+    totalCommand: number = 0
     constructor(option: LitbotOptions) {
+        this.beginTime = new Date()
         console.log('Litbot (oicq encapsulation)')
         this.option = option
         this.prefix = option.prefix || '.'
@@ -286,6 +290,7 @@ export class Litbot {
             platform: 2
         })
         this.client.on('message', e => {
+            this.totalMessage++
             let cur = -1
             const next = async () => {
                 cur += 1
@@ -335,6 +340,19 @@ export class Litbot {
                     list.push(`${c++}. ${key}: ${cmd.description}`)
                 }
                 return e.reply(this.name + ' 帮助\n请在所有命令前添加前缀 ' + this.prefix + '\n' + list.join('\n'), true)
+            }
+        })
+        this.command({
+            name: 'stat',
+            description: '机器人状态',
+            job: async (e, client) => {
+                const elasped = (new Date().getTime() - this.beginTime.getTime()) / 1000
+                const uptime = Math.floor(elasped / 86400) + '天' + Math.floor(elasped % 86400 / 3600) + '小时' + Math.floor(elasped % 3600 / 60) + '分' + Math.floor(elasped % 60) + '秒'
+                const totalCommand = this.totalCommand
+                const totalMessage = this.totalMessage
+                const totalCommandPerHour = Math.floor(totalCommand / Math.ceil(elasped / 3600))
+                const totalMessagePerHour = Math.floor(totalMessage / Math.ceil(elasped / 3600))
+                return e.reply(`机器人运行时间：${uptime}\n接收到消息：${totalMessage} 条\n已处理命令：${totalCommand} 条\n平均每小时接收消息：${totalMessagePerHour} 条\n平均每小时处理命令：${totalCommandPerHour} 条`, true)
             }
         })
     }
@@ -485,6 +503,7 @@ export class Litbot {
                     global: this.data
                 }, this.client, e)
                 try {
+                    this.totalCommand++
                     await command.job({
                         args,
                         ...e
