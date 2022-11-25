@@ -120,6 +120,7 @@ export default new Command({
                     data.price -= costPrice
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
+                    delete user._id
                     this.data.users.updateOne({ qid: userid }, { $set: user })
                     const costTime = ((new Date).getTime() - begin.getTime()) / 1000
                     await session.send((e.args['使用公用账户'] ? '<公用账户>' : e.sender.nickname) + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
@@ -254,6 +255,7 @@ export default new Command({
                     data.price -= costPrice
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
+                    delete user._id
                     this.data.users.updateOne({ qid: e.sender.user_id }, { $set: user })
                     const costTime = ((new Date).getTime() - begin.getTime()) / 1000
                     await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
@@ -386,6 +388,7 @@ export default new Command({
                     data.price -= costPrice
                     user.price -= costPrice
                     this.data.config.updateOne({ type: 'main' }, { $set: data })
+                    delete user._id
                     this.data.users.updateOne({ qid: e.sender.user_id }, { $set: user })
                     const costTime = ((new Date).getTime() - begin.getTime()) / 1000
                     await session.send(e.sender.nickname + ' 消耗 ' + cost + ' 点(' + costPrice.toFixed(4) + '元), 剩余 ' + user.price.toFixed(4) + ' 元, 耗时 ' + costTime.toFixed(1) + ' 秒。', true)
@@ -432,6 +435,7 @@ export default new Command({
                     }
                 }
                 res.price += e.args['金额']
+                delete res._id
                 await this.data.users.updateOne({ qid: e.args['用户'] }, { $set: res }, { upsert: true })
                 const username = e.args['用户'] && (await client.getStrangerInfo(e.args['用户'] as number)).nickname || '<公用账户>'
                 session.send('用户 ' + username + ' 余额增加 ' + e.args['金额'] + ' 元， 当前余额 ' + res.price.toFixed(2) + ' 元。')
