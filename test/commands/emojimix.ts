@@ -602,7 +602,7 @@ export default new Command({
                 }
             }
             if (date === '') {
-                return s.send(`${emoji2} 不是有效的emoji`);
+                return s.send(`该 emoji 混合不存在`);
             }
             // add 'u' to codes
             // like '1f62e-200d-1f4a8' to 'u1f62e-u200d-u1f4a8
