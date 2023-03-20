@@ -9,7 +9,7 @@ const msgMaxLength = 300
 const group_whitelist = config.openai.group_whitelist
 const private_whitelist = config.openai.private_whitelist
 const admin_list = config.openai.admin_list
-const multiToken = config.openai.multiToken
+const multiToken = config.openai.multiTokens
 const group_messages = {}
 const private_messages = {}
 function formatTime() {
@@ -163,7 +163,7 @@ async function reply(e, token, promt) {
 
 async function handleTask(e, promt) {
   // 按上次使用时间排序
-  const tokens = [...multiTokens].filter(x => avaliableToken[x] !== false).sort((a, b) => lastUsedTime[a] - lastUsedTime[b])
+  const tokens = [...multiToken].filter(x => avaliableToken[x] !== false).sort((a, b) => lastUsedTime[a] - lastUsedTime[b])
   if (!tokens.length) {
     addToGroupMessage(e)
     e.reply("No avaliable token found.")
