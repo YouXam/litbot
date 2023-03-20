@@ -1,4 +1,4 @@
-import { MessageElem } from "oicq"
+import { MessageElem } from "icqq"
 import { Command } from '../../src/index'
 
 export default new Command({

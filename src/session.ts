@@ -1,4 +1,4 @@
-import { Client, DiscussMessageEvent, GroupAdminEvent, GroupMessageEvent, MessageElem, MessageRet, PrivateMessageEvent, Sendable } from "oicq"
+import { Client, DiscussMessageEvent, GroupAdminEvent, GroupMessageEvent, MessageElem, MessageRet, PrivateMessageEvent, Sendable } from "icqq"
 
 export interface SessionPort {
     type: 'private' | 'group' | 'discuss'
@@ -6,7 +6,7 @@ export interface SessionPort {
     discuss_id?: number
     account: number
 }
-type LitSessionsOfPerson = Map<number, Session>
+type LitSessionsOfPerson = Map<number, Session | null>
 type LitSessionOfGruop = Map<number, LitSessionsOfPerson>
 export interface LitSessions {
     private: LitSessionOfGruop
@@ -14,18 +14,18 @@ export interface LitSessions {
     discuss: LitSessionOfGruop
 }
 export class Session {
-    reply: Function = null
-    inputCallback: Function = null
-    inputError: Function = null
-    port: SessionPort = null
-    sessions: LitSessions = null
-    client: Client = null
-    e: GroupMessageEvent | DiscussMessageEvent | PrivateMessageEvent = null
+    reply: Function
+    inputCallback: Function | null = null
+    inputError: Function | null = null
+    port: SessionPort
+    sessions: LitSessions
+    client: Client
+    e: GroupMessageEvent | DiscussMessageEvent | PrivateMessageEvent
     data: {
         private: { [ key: string ]: any },
         public: { [ key: string ]: any },
         global: { [ key: string ]: any }
-    } = null
+    }
     constructor(s: LitSessions, data: any, client: Client, e: GroupMessageEvent | DiscussMessageEvent | PrivateMessageEvent) {
         this.port = {
             type: e.message_type,
@@ -35,7 +35,7 @@ export class Session {
         }
         this.data = data
         this.reply = function (...args: any[]) {
-            e.reply.apply(e, args)
+            e.reply.apply(e, args as [content: Sendable, quote?: boolean | undefined]);
         }, 
         this.sessions = s
         this.client = client
@@ -61,9 +61,9 @@ export class Session {
         if (quote) {
             return await this.reply(e, quote || false)
         }
-        if (this.port.type == 'group') {
+        if (this.port.group_id && this.port.type == 'group') {
             return await this.client.sendGroupMsg(this.port.group_id, e)
-        } else if (this.port.type == 'discuss') {
+        } else if (this.port.discuss_id && this.port.type == 'discuss') {
             return await this.client.sendDiscussMsg(this.port.discuss_id, e)
         }
         return await this.client.sendPrivateMsg(this.port.account, e)

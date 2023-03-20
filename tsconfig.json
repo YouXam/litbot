@@ -10,11 +10,13 @@
         "lib": [
             "dom",
             "es6"
-        ]
+        ],
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
     },
     "include": [
         "src/**/*"
-    ],
+, "colors-console.d.ts", "colors-console.d.ts"    ],
     "exclude": [
         "node_modules",
         "test/**/*"

@@ -1,24 +1,24 @@
-import { Client, createClient, DiscussMessageEvent, Group, GroupMessageEvent, MessageElem, PrivateMessageEvent, TextElem } from "oicq"
+import { Client, createClient, DiscussMessageEvent, Group, GroupMessageEvent, MessageElem, PrivateMessageEvent, TextElem } from "icqq"
 import { Session, LitSessions } from "./session"
 import * as clearModule from 'clear-module'
 import { fstat, watch } from 'fs'
+// @ts-ignore
 import * as cron from 'node-cron'
 import { Db, MongoClient } from 'mongodb'
-import * as colors from 'colors-console'
 import { config } from "process"
-export { Client, createClient, Config, Logger, LogLevel, Statistics } from "oicq"
-export { User, Friend } from "oicq"
-export { Discuss, Group } from "oicq"
-export { Member } from "oicq"
-export { StrangerInfo, FriendInfo, GroupInfo, MemberInfo } from "oicq"
-export { Gfs, GfsDirStat, GfsFileStat } from "oicq"
-export { Gender, GroupRole, OnlineStatus } from "oicq"
-export { ErrorCode, LoginErrorCode } from "oicq"
-export { Message, PrivateMessage, GroupMessage, DiscussMessage, ForwardMessage, Forwardable, Quotable, MusicPlatform, Sendable, Anonymous, MessageElem, FileElem, ReplyElem, TextElem, AtElem, FaceElem, BfaceElem, MfaceElem, ImageElem, MiraiElem, FlashElem, PttElem, VideoElem, XmlElem, JsonElem, ShareElem, LocationElem, PokeElem, parseDmMessageId, parseGroupMessageId, parseImageFileParam, getGroupImageUrl, segment } from "oicq"
-export { PrivateMessageEvent, GroupMessageEvent, DiscussMessageEvent, MessageRet, MessageEvent, RequestEvent, FriendNoticeEvent, GroupNoticeEvent, FriendRequestEvent, GroupRequestEvent, GroupInviteEvent, EventMap, FriendIncreaseEvent, FriendDecreaseEvent, FriendRecallEvent, FriendPokeEvent, MemberIncreaseEvent, MemberDecreaseEvent, GroupRecallEvent, GroupPokeEvent, GroupAdminEvent, GroupMuteEvent, GroupTransferEvent } from "oicq"
-export { ApiRejection, Device, Apk, Platform, Domain } from "oicq"
-export * as core from "oicq"
-export { OcrResult } from "oicq"
+export { Client, createClient, Config, LogLevel, Statistics } from "icqq"
+export { User, Friend } from "icqq"
+export { Discuss, Group } from "icqq"
+export { Member } from "icqq"
+export { StrangerInfo, FriendInfo, GroupInfo, MemberInfo } from "icqq"
+export { Gfs, GfsDirStat, GfsFileStat } from "icqq"
+export { Gender, GroupRole, OnlineStatus } from "icqq"
+export { ErrorCode, LoginErrorCode } from "icqq"
+export { Message, PrivateMessage, GroupMessage, DiscussMessage, ForwardMessage, Forwardable, Quotable, MusicPlatform, Sendable, Anonymous, MessageElem, FileElem, ReplyElem, TextElem, AtElem, FaceElem, BfaceElem, MfaceElem, ImageElem, MiraiElem, FlashElem, PttElem, VideoElem, XmlElem, JsonElem, ShareElem, LocationElem, PokeElem, parseDmMessageId, parseGroupMessageId, parseImageFileParam, getGroupImageUrl, segment } from "icqq"
+export { PrivateMessageEvent, GroupMessageEvent, DiscussMessageEvent, MessageRet, MessageEvent, RequestEvent, FriendNoticeEvent, GroupNoticeEvent, FriendRequestEvent, GroupRequestEvent, GroupInviteEvent, EventMap, FriendIncreaseEvent, FriendDecreaseEvent, FriendRecallEvent, FriendPokeEvent, MemberIncreaseEvent, MemberDecreaseEvent, GroupRecallEvent, GroupPokeEvent, GroupAdminEvent, GroupMuteEvent, GroupTransferEvent } from "icqq"
+export { ApiRejection, Device, Apk, Platform, Domain } from "icqq"
+export * as core from "icqq"
+export { OcrResult } from "icqq"
 interface LitPrivateMessageEvent extends PrivateMessageEvent {
     args: { [key: string]: string | boolean | number | object }
 }
@@ -65,13 +65,13 @@ interface _Middleware {
     groupWhitelist?: { [key: number]: boolean }
     /** 人白名单 */
     userWhitelist?: { [key: number]: boolean }
-    job: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>
+    job: (e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>
 }
 
 export class Middleware implements _Middleware {
     name: string
-    groupWhitelist = null
-    userWhitelist = null
+    groupWhitelist
+    userWhitelist
     job: (e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, client: Client, next: () => Promise<void>) => Promise<void>
     constructor(info: _Middleware) {
         this.name = info.name
@@ -97,7 +97,7 @@ interface _Command {
     /** 子命令列表 */
     subcommands?: Command[]
     /** 命令数据, 重载后不会被初始化 */
-    data?: { [key: string]: any, db: Db }
+    data?: { [key: string]: any, db: Db | null }
     /** 特定群聊的数据 */
     __gData?: { [key: number]: any }
     /** 群白名单 */
@@ -122,28 +122,28 @@ export class Command implements _Command {
     subcommands?: Command[]
     __subcommands?: { [key: string]: Command } = {}
     /** 命令数据, 重载后不会被初始化 */
-    data?: { [key: string]: any, db: Db }
+    data?: { [key: string]: any, db: Db | null }
     /** 特定群聊的数据 */
     __gData?: { [key: number]: any }
     /** 群白名单 */
-    groupWhitelist?: { [key: number]: boolean } = null
+    groupWhitelist?: { [key: number]: boolean }
     /** 人白名单 */
-    userWhitelist?: { [key: number]: boolean } = null
+    userWhitelist?: { [key: number]: boolean }
     init?: () => Promise<void>
     /** 命令逻辑函数 */
     job?: (e: LitPrivateMessageEvent | LitGroupMessageEvent | LitDiscussMessageEvent, session: Session, client: Client) => Promise<any>
     constructor(info: _Command) {
         this.name = info.name
         this.description = info.description
-        this.usage = info.usage || null
+        this.usage = info.usage || ''
         this.args = info.args || []
         this.subcommands = info.subcommands || []
         this.data = info.data || {
             db: null
         }
         this.init = info.init
-        this.groupWhitelist = info.groupWhitelist || null
-        this.userWhitelist = info.userWhitelist || null
+        this.groupWhitelist = info.groupWhitelist || undefined
+        this.userWhitelist = info.userWhitelist || undefined
         this.job = info.job
     }
 }
@@ -167,10 +167,10 @@ type LineArgument = boolean | (MessageElem & {
     text_type: 'quote' | 'normal'
 })
 /** 测试参数类型 */
-function testType(type, value) {
+function testType(type: string, value: string | number | boolean | (MessageElem & { text_type: "quote" | "normal" })) {
     if (type === 'any') return [true, value]
     if (typeof value === 'object' && value.type === 'text' && value.text !== undefined) value = value.text
-    const nil = [false, null], boolt = {
+    const nil = [false, null], boolt: { [key: string]: boolean } = {
         true: true,
         false: false,
         yes: true,
@@ -190,10 +190,20 @@ function testType(type, value) {
         return typeof value !== 'string' ? nil : [true, value]
     }
     if (type === 'number') {
-        return isNaN(value) || !value.length ? nil : [true, parseFloat(value)]
+        if (typeof value === 'string')
+            return isNaN(parseFloat(value)) || !value.length ? nil : [true, parseFloat(value)]
+        else if (typeof value === 'number')
+            return [true, value]
+        return nil
     }
     if (type === 'boolean') {
-        return boolt[value] !== undefined ? [true, boolt[value]] : nil
+        // return boolt[value] !== undefined ? [true, boolt[value]] : nil
+        if (typeof value === 'string') {
+            return boolt[value] !== undefined ? [true, boolt[value]] : nil
+        } else if (typeof value === 'boolean') {
+            return [true, value]
+        }
+        return nil
     }
     if (type === 'at') {
         if (typeof value === 'object' && value.type === 'at') {
@@ -206,7 +216,7 @@ function testType(type, value) {
     return nil
 }
 /** 返回命令帮助信息 */
-function getUsage(cmd: Command, prefix: string, e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, upcommand?: Command, ): string {
+function getUsage(cmd: Command, prefix: string, e: PrivateMessageEvent | GroupMessageEvent | DiscussMessageEvent, upcommand?: Command | null ): string {
     const positionalArguments = [], keywordArgument = []
     if (cmd.args === undefined) cmd.args = []
     if (!cmd.usage) {
@@ -255,38 +265,41 @@ ${keywordArgument.map(x => '  ' + x.usage + ktypet[x.dataType] + (x.defaultValue
     return cmd.usage
 }
 function log(forp: string, msg: string) {
-    console.log(colors('green', '[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp + '] - ') + msg)
+    console.log('[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp + '] - ' + msg)
 }
 function error(forp: string, msg: string) {
-    console.log(colors('red', '[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp + '] - ' + msg))
+    console.log('[' + (new Date()).toISOString().slice(0, 23) + '] [Litbot] [' + forp + '] - ' + msg)
 }
 export class Litbot {
     __command_list: { [key: string]: Command } = {}
     __crontab_list: { [key: string]: any } = {}
     __middlewares: Middleware[] = []
     __middlewares_list: { [key: string]: any } = {}
-    client: Client = null
+    client: Client
     prefix: string = '.'
     name: string
     data: { [key: string]: any } = {}
     sessions: LitSessions = {
+        // @ts-ignore
         private: null,
+        // @ts-ignore
         group: null,
+        // @ts-ignore
         discuss: null
     }
-    db: Db
-    dbClient: MongoClient = null
+    db: Db | null = null
+    dbClient: MongoClient | null = null
     option: LitbotOptions
-    beginTime: Date = null
+    beginTime: Date
     totalMessage: number = 0
     totalCommand: number = 0
     constructor(option: LitbotOptions) {
         this.beginTime = new Date()
-        console.log('Litbot (oicq encapsulation)')
+        console.log('Litbot (icqq encapsulation)')
         this.option = option
         this.prefix = option.prefix || '.'
         this.name = option.name
-        this.client = createClient(option.account, {
+        this.client = createClient({
             platform: 2
         })
         this.client.on('message', e => {
@@ -314,19 +327,44 @@ export class Litbot {
             this.dbClient = new MongoClient(option.mongoUrl)
             this.dbClient.connect().then(() => {
                 log('database', 'Database connected.')
-                this.db = this.dbClient.db('litbot')
+                this.db = (this.dbClient as MongoClient).db('litbot')
                 Object.values(this.__command_list).forEach((e: Command) => {
+                    // @ts-ignore
                     e.data.db = this.db
                     if (e.init) e.init()
                 })
             })
         }
-        this.client.on("system.login.slider", function (e) {
-            console.log('\n网址请均在滑动验证助手(https://install.appcenter.ms/users/mzdluo123/apps/txcaptchahelper/distribution_groups/public)中访问。')
-            console.log('验证完成之后若程序无反应，请重启程序。')
-            console.log("输入ticket：")
-            process.stdin.once("data", ticket => this.submitSlider(String(ticket).trim()))
-        }).login(option.password)
+        this.client.on('system.login.slider', (e) => {
+            console.log('输入滑块地址获取的ticket后继续。\n滑块地址:    ' + e.url)
+            process.stdin.once('data', (data) => {
+                this.client.submitSlider(data.toString().trim())
+            })
+        })
+        this.client.on('system.login.qrcode', (e) => {
+            console.log('扫码完成后回车继续:    ')
+            process.stdin.once('data', () => {
+                this.client.login()
+            })
+        })
+        this.client.on('system.login.device', (e) => {
+            console.log('请选择验证方式:(1：短信验证   其他：扫码验证)')
+            process.stdin.once('data', (data) => {
+                if (data.toString().trim() === '1') {
+                    this.client.sendSmsCode()
+                    console.log('请输入手机收到的短信验证码:')
+                    process.stdin.once('data', (res) => {
+                        this.client.submitSmsCode(res.toString().trim())
+                    })
+                } else {
+                    console.log('扫码完成后回车继续：' + e.url)
+                    process.stdin.once('data', () => {
+                        this.client.login()
+                    })
+                }
+            })
+        })
+        this.client.login(option.account, option.password)
         this.command({
             name: 'help',
             description: '显示机器人帮助',
@@ -335,8 +373,10 @@ export class Litbot {
                 let c = 1
                 for (const key of Object.keys(this.__command_list)) {
                     const cmd = this.__command_list[key]
-                    if (e.message_type == 'group' && cmd.groupWhitelist && !cmd.groupWhitelist[e.group_id] || cmd.userWhitelist && !cmd.userWhitelist?.[e.sender.user_id])
+                    if (e.message_type == 'group' && cmd.groupWhitelist !== undefined && !cmd.groupWhitelist[e.group_id] || cmd.userWhitelist !== undefined && cmd.userWhitelist !== undefined && !cmd.userWhitelist?.[e.sender.user_id]) {
+                        log('help', '跳过 ' + key + ' (权限不足):' + JSON.stringify((e.message_type == 'group' ? cmd.groupWhitelist : cmd.userWhitelist)))
                         continue
+                    }
                     list.push(`${c++}. ${key}: ${cmd.description}`)
                 }
                 return e.reply(this.name + ' 帮助\n请在所有命令前添加前缀 ' + this.prefix + '\n' + list.join('\n'), true)
@@ -367,7 +407,8 @@ export class Litbot {
                 if (a) {
                     const b = a.get(e.sender.user_id)
                     if (b) {
-                        b.inputCallback(e)
+                        if (b.inputCallback) b.inputCallback(e)
+                        
                         a.set(e.sender.user_id, null)
                         this.sessions[e.message_type].set(id, a)
                         return
@@ -376,13 +417,13 @@ export class Litbot {
             }
             if (!e.raw_message.startsWith(this.prefix)) return
             // parse arguments
-            let cmd = '', message = []
+            let cmd = '', message: any = []
             const kargs: { [key: string]: LineArgument } = {}, pargs: Array<LineArgument> = []
             for (const i of e.message) {
                 if (i.type === 'text') {
                     const t = []
                     let lquote = '', last = '', last_type = 'normal', tran = -2
-                    const trant = {
+                    const trant: { [key: string]: string} = {
                         n: '\n',
                         t: '\t',
                         r: '\r',
@@ -448,7 +489,7 @@ export class Litbot {
             let command = this.__command_list[cmd]
             if (!command) return
             let upcommand = null
-            if (pargs.length > 0 && typeof (pargs[0]) !== 'boolean' && pargs[0].type === 'text') {
+            if (pargs.length > 0 && typeof (pargs[0]) !== 'boolean' && pargs[0].type === 'text' && command.__subcommands) {
                 const subcommand = command.__subcommands[pargs[0].text]
                 if (subcommand && !(e.message_type == 'group' && subcommand.groupWhitelist && !subcommand.groupWhitelist[e.group_id]) && !(subcommand.userWhitelist && !subcommand.userWhitelist?.[e.sender.user_id])) {
                     upcommand = command
@@ -465,9 +506,9 @@ export class Litbot {
             if (kargs.help || kargs.h) {
                 return e.reply(getUsage(command, this.prefix, e, upcommand), true)
             }
-            const args = {}, errorTypes = []
+            const args: {[key: string]: any} = {}, errorTypes = []
             let parg_cur = 0
-            for (const i of command.args) {
+            for (const i of command.args || []) {
                 if (i.defaultValue) args[i.name] = i.defaultValue
                 if (i.argType === 'positional') {
                     if (parg_cur < pargs.length) {
@@ -477,7 +518,7 @@ export class Litbot {
                     } else if (i.required) {
                         return e.reply(`${i.name} 是必须参数，但是没有提供`, true)
                     }
-                } else {
+                } else if (i.alias) {
                     for (const j of i.alias) {
                         const tmp = kargs[j.replace(/^-+/, '')]
                         if (tmp !== undefined) {
@@ -496,10 +537,10 @@ export class Litbot {
             if (command.job) {
                 console.log((upcommand ? upcommand.name + '.' : '') + command.name, '开始运行')
                 const curcommand = upcommand || command
-                if (e.message_type === 'group' && !curcommand.__gData[e.group_id]) curcommand.__gData[e.group_id] = {}
+                if (e.message_type === 'group' && curcommand.__gData && !curcommand.__gData[e.group_id]) curcommand.__gData[e.group_id] = {}
                 const _session = new Session(this.sessions, {
                     public: curcommand.data,
-                    private: e.message_type === 'group' ? curcommand.__gData[e.group_id] : null,
+                    private: e.message_type === 'group' && curcommand.__gData ? curcommand.__gData[e.group_id] : null,
                     global: this.data
                 }, this.client, e)
                 try {
@@ -509,7 +550,7 @@ export class Litbot {
                         ...e
                     } as (LitDiscussMessageEvent | LitGroupMessageEvent | LitPrivateMessageEvent), _session, this.client)
                 } catch (e) {
-                    error('command.' + curcommand.name, e.message || e.toString())
+                    error('command.' + curcommand.name, (e as Error).message || (e as Error).toString())
                 }
             } else {
                 e.reply('此命令下无函数逻辑，请检查子命令', true)
@@ -562,7 +603,7 @@ export class Litbot {
                     error('command.' + target.name.toString() + '.' + i.name.toString(), '命令语法错误，位置参数中的必须参数必须在可选参数之前')
                     return
                 }
-            } else if (i.argType === 'keyword') {
+            } else if (i.argType === 'keyword' && i.alias) {
                 for (const j of i.alias) {
                     if (!(j.startsWith('--') && j.length >= 2) && !(j.startsWith('-') && j.length == 2)) {
                         error('command.' + target.name.toString() + '.' + i.name.toString(), '命令语法错误，请检查命令参数名称')
@@ -581,8 +622,10 @@ export class Litbot {
             target.__gData = {}
         }
         for (let i of target.subcommands || []) {
-            target.__subcommands[i.name] = i
-            target.__subcommands[i.name].data = target.data
+            if (target.__subcommands) {
+                target.__subcommands[i.name] = i
+                target.__subcommands[i.name].data = target.data
+            }
         }
         this.__command_list[target.name] = target
         log('command.' + target.name, last ? '命令重新加载' : '命令已加载')
@@ -620,7 +663,7 @@ export class Litbot {
             try {
                 await target.job(this.client, this.data)
             } catch (e) {
-                error('crontab.' + target.name, e.toString())
+                error('crontab.' + target.name, (e as Error).toString())
             }
         })
     }

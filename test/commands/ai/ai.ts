@@ -1,6 +1,6 @@
 import { Command, segment,  } from '../../../src/index'
 import { getImage, getPrice, Config, getAnlas } from './spider'
-import { AtElem, MessageElem, MessageRet, TextElem } from 'oicq'
+import { AtElem, MessageElem, MessageRet, TextElem } from 'icqq'
 import config from './config'
 import * as fsp from 'fs/promises'
 export default new Command({

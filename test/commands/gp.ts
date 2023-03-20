@@ -1,4 +1,4 @@
-import { MessageElem, segment, ImageElem, MessageRet } from "oicq"
+import { MessageElem, segment, ImageElem, MessageRet } from "icqq"
 import { Command } from '../../src/index'
 import { exec } from 'child_process'
 import axios from 'axios'

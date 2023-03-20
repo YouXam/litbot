@@ -1,4 +1,4 @@
-import { MessageElem, segment } from "oicq"
+import { MessageElem, segment } from "icqq"
 import { Command } from '../../src/index'
 
 const events = [

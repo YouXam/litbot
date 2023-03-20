@@ -1,6 +1,6 @@
 import { Middleware } from '../../src/index'
 
-const bracket = {
+const bracket: { [key: string]: any} = {
     '(': ')',
     '[': ']',
     '{': '}',
@@ -14,7 +14,7 @@ const bracket = {
     "“": "”"
 }
 
-const fBracket = {
+const fBracket: { [key: string]: any} = {
     ')': '(',
     ']': '[',
     '}': '{',
