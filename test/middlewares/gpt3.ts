@@ -163,7 +163,7 @@ async function reply(e, token, promt) {
 
 async function handleTask(e, promt) {
   // 按上次使用时间排序
-  const tokens = [...multiToken].filter(x => avaliableToken[x] !== false).sort((a, b) => lastUsedTime[a] - lastUsedTime[b])
+  const tokens = [...multiTokens].filter(x => avaliableToken[x] !== false).sort((a, b) => lastUsedTime[a] - lastUsedTime[b])
   if (!tokens.length) {
     addToGroupMessage(e)
     e.reply("No avaliable token found.")
