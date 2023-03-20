@@ -57,7 +57,7 @@ async function getUsage(token) {
         },
         "method": "GET"
     });
-    const json: any = await data.json()
+    const json: any = data.data
     return {
         grant_amount: json.total_granted,
         used_amount: json.total_used
