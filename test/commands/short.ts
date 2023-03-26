@@ -28,10 +28,11 @@ export default new Command({
                 url: link
             }
         })
-        if (res.status === 200) {
-            e.reply('短链接：' + res.data.shortUrl)
+        if (res.status === 201) {
+            e.reply('短链接：' + res.data.shortUrl.replace('https://', ''))
         } else {
             e.reply('短链接生成失败')
+            console.log(res.status, res.data)
         }
     }
 })
