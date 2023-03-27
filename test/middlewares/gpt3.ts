@@ -71,6 +71,39 @@ function generatePromt(e, msg_length, messages) {
     }
     return header + messages.slice(-msg_length).filter(x => deleteSpecial(x.raw_message).trim().length).map(x => `【【${(x.sender.card || x.sender.nickname)}】】${deleteSpecial(x.raw_message)}`).join("\n") + "\n【【olight】】"
 }
+function generatePromtFor35(e, msg_length, message) {
+    const header = getHeader(e)
+    if (msg_length === 0) return null
+    let source = message
+    let res = [], total = 0
+    // 最后 msg_length 条消息
+    for (let i = source.length - 1; i >= source.length-msg_length && i >= 0; i--) {
+        if (source[i].sender.user_id === config.account) {
+            res.push({
+                role: 'assistant',
+                content: source[i].raw_message
+            })
+            total += calculatePromtLength(source[i].raw_message)
+        } else {
+            res.push({
+                role: 'user',
+                content: `【【${source[i].sender.card || source[i].sender.nickname }】】` + source[i].raw_message
+            })
+            total += calculatePromtLength(source[i].raw_message)
+        }
+    }
+    
+    res.push({
+        role: 'system',
+        content: header
+    })
+    total += calculatePromtLength(header)
+    res.reverse()
+    return {
+        data: res,
+        length: total
+    }
+}
 function getPromt(e, messages) {
     let l = 0, r = 300
     const limit = 2000
@@ -84,6 +117,23 @@ function getPromt(e, messages) {
         }
     }
     const promt = generatePromt(e, l, messages)
+    if (promt === null) return null
+    console.log("Promt length: " + promt.length)
+    return promt
+}
+function getPromtFor35(e, message) {
+    let l = 0, r = 300
+    const limit = 2000
+    while (l < r) {
+        const mid = Math.floor((l + r + 1) / 2)
+        const promt = generatePromtFor35(e, mid, message)
+        if (promt.length > limit) {
+            r = mid - 1
+        } else {
+            l = mid
+        }
+    }
+    const promt = generatePromtFor35(e, l, message)
     if (promt === null) return null
     console.log("Promt length: " + promt.length)
     return promt
@@ -125,11 +175,32 @@ async function openAIReply(promt, token) {
     });
     return response.data.choices[0].text
 }
+async function openAIReply35(messages, token) {
+//    const data = await axios({
+    const payload = {
+        url: "https://api.openai.com/v1/chat/completions",
+        "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token,
+        },
+        "method": "POST",
+        "data": {
+            "model": "gpt-3.5-turbo",
+            // "temperature": 1,
+            // "max_tokens": 3000 - messages.length,
+            "messages": messages.data
+        }
+    }
+    const data = await axios(payload).catch(err => console.log(err.response))
+    let res = data.data.choices[0].message.content
+    res = res.replace(/^.*?】】/, '')
+    return res
+}
 async function reply(e, token, promt) {
     lastUsedTime[token] = Date.now()
     try {
         console.log("Generating message...")
-        const result: any = await openAIReply(promt, token)
+        const result: any = await openAIReply35(promt, token)
         console.log("Message generated!")
         console.log("Message: " + result)
         await e.reply(result.trim())
@@ -148,8 +219,8 @@ async function reply(e, token, promt) {
             })
         }
     } catch (err) {
-        if (e.message_type === "group") addToGroupMessage(e)
-        else addToPrivateMessage(e)
+        // if (e.message_type === "group") addToGroupMessage(e)
+        // else addToPrivateMessage(e)
         console.log(err.toString())
         lastUsedTime[token] = 0
         if (err.toString().includes('429')) {
@@ -216,7 +287,9 @@ export default new Middleware({
                 if (e.raw_message.startsWith("！") || e.raw_message.startsWith(";") || e.raw_message.startsWith("；") || e.raw_message.startsWith("!") || e.message.some(x => x.type === "at" && x.qq === config.account)) {
                     const message = [...(group_messages[e.group_id] || [])]
                     message.push(e)
-                    const promt = getPromt(e, message)
+                    const promt = getPromtFor35(e, message)
+                    // const promt = getPromt(e, message)
+                    console.log(getPromtFor35(e, message))
                     if (promt === null) {
                         e.reply('Sorry, your message is too long.')
                         return
