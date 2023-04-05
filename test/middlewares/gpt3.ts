@@ -144,7 +144,7 @@ async function replyUsage(e) {
         getUsage(token).then(({ grant_amount, used_amount }) => {
             res.push({ token, grant_amount, used_amount } as any)
             // str += `${++cnt}：${countToken[token]} - $${used_amount.toFixed(2)}/$${grant_amount.toFixed(2)}\n`
-        })
+        }).catch(err => console.log(err))
     )
     await Promise.all(tasks)
     res.sort((a, b) => b.used_amount - a.used_amount)
@@ -161,8 +161,6 @@ async function openAIReply(promt, token) {
         apiKey: token,
     });
     const openai = new OpenAIApi(configuration);
-    console.log(calculatePromtLength(promt))
-    console.log(token)
     const response = await openai.createCompletion({
         model: "text-davinci-003",
         prompt: promt,
@@ -191,7 +189,8 @@ async function openAIReply35(messages, token) {
             "messages": messages.data
         }
     }
-    const data = await axios(payload).catch(err => console.log(err.response))
+    const data = await axios(payload)
+		if (data?.data?.error?.message?.length > 0) return -1
     let res = data.data.choices[0].message.content
     res = res.replace(/^.*?】】/, '')
     return res
@@ -201,6 +200,7 @@ async function reply(e, token, promt) {
     try {
         console.log("Generating message...")
         const result: any = await openAIReply35(promt, token)
+				if (result === -1) throw '429'
         console.log("Message generated!")
         console.log("Message: " + result)
         await e.reply(result.trim())
@@ -221,7 +221,7 @@ async function reply(e, token, promt) {
     } catch (err) {
         // if (e.message_type === "group") addToGroupMessage(e)
         // else addToPrivateMessage(e)
-        console.log(err.toString())
+        console.log(226, err.toString())
         lastUsedTime[token] = 0
         if (err.toString().includes('429')) {
             avaliableToken[token] = false
@@ -279,17 +279,12 @@ export default new Middleware({
                     await client.sendGroupMsg(e.group_id, "重置成功！")
                     return
                 }
-                if (e.raw_message.trim() === "/usage") {
-                    await replyUsage(e)
-                    return
-                }
                 // if @ bot or msg starts with "!"
                 if (e.raw_message.startsWith("！") || e.raw_message.startsWith(";") || e.raw_message.startsWith("；") || e.raw_message.startsWith("!") || e.message.some(x => x.type === "at" && x.qq === config.account)) {
                     const message = [...(group_messages[e.group_id] || [])]
                     message.push(e)
                     const promt = getPromtFor35(e, message)
                     // const promt = getPromt(e, message)
-                    console.log(getPromtFor35(e, message))
                     if (promt === null) {
                         e.reply('Sorry, your message is too long.')
                         return
@@ -299,7 +294,7 @@ export default new Middleware({
                     addToGroupMessage(e)
                 }
             } catch (e) {
-                console.log(e)
+                console.log(303, e)
             }
         } else {
             try {
@@ -312,10 +307,6 @@ export default new Middleware({
                     await client.sendPrivateMsg(e.sender.user_id, "重置成功！")
                     return
                 }
-                if (e.raw_message.trim() === "/usage") {
-                    await replyUsage(e)
-                    return
-                }
                 const messages = [...(private_messages[e.sender.user_id] || [])]
                 messages.push(e)
                 const promt = getPromt(e, messages)
@@ -325,7 +316,7 @@ export default new Middleware({
                 }
                 handleTask(e, promt)
             } catch (e) {
-                console.log(e)
+                console.log(329,e)
             }
         }
         await next()
